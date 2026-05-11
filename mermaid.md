@@ -1,11 +1,14 @@
-# Use Case Diagramm
-  
-```mermaid
-useCaseDiagram
-    actor Spieler
-    actor System
-    
-    Spieler --> (Farben wählen)
-    Spieler --> (Zug bestätigen)
-    System --> (Zeit prüfen)
-    System --> (Stifte berechnen)
+graph LR
+    subgraph SuperSuperHirn
+        UC1(Code setzen)
+        UC2(Farben raten)
+        UC3(Zeitlimit beachten)
+    end
+
+    Spieler((Spieler))
+    Bot((Bot/System))
+
+    Spieler --- UC2
+    Spieler --- UC3
+    Bot --- UC1
+    Bot --- UC2
