@@ -15,7 +15,7 @@ Das Spiel wird in **Python** entwickelt und als native Anwendung für Windows, m
 ## 👥 Das Team & Rollen
 | Rolle | Name | Fokus |
 | :--- | :--- | :--- |
-| **Head of Requirements Engineering** | **Ky** | Spezifikation, User Stories, Wiki-Pflege |
+| **Head of Requirements Engineering** | **Ky Anh** | Spezifikation, User Stories, Wiki-Pflege |
 | **Head of Project Coordination** | **Elo** | Zeitplanung, Meilensteine, Stakeholder |
 | **Lead Developer** | **Marlon** | Logik-Implementierung, Algorithmus, PEP8 |
 | **Software Architekt** | **Felix** | Systemdesign, UML, UI-Struktur |
