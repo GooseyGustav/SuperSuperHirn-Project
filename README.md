@@ -27,8 +27,8 @@ Das Spiel wird in **Python** entwickelt und als native Anwendung für Windows, m
 - [x] Erste Stakeholder-Runde abgeschlossen.
 - [x] Kernlogik (5 Pins / 8 Farben) definiert.
 - [x] Erste User Stories und Sequenzdiagramme erstellt.
-- [ ] UI-Mockup (Retro-Stil) in Arbeit.
-- [ ] Algorithmus-Recherche (Minimax) gestartet.
+- [x] UI-Mockup (Retro-Stil) in Arbeit.
+- [x] Algorithmus-Recherche (Minimax) gestartet.
 
 ---
 
