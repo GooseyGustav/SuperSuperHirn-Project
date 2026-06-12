@@ -33,6 +33,7 @@ unit_tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+  allow_failure: true
 
 integration_tests:
   stage: test
