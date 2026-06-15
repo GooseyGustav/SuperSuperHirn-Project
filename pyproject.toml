@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "supersuperhirn"
+version = "0.1.0"
+description = "SuperSuperHirn_13"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PySide6>=6.6.0",
+]
+
+[project.scripts]
+# CLI entry point mapping
+supersuperhirn = "startup.supersuperhirn_runner:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "flake8>=7.0.0",
+    "Flake8-pyproject>=1.2.3", # enables flake8 to read this file
+    "radon>=6.0.0",
+]
+
+# --- Build Configuration ---
+
+[tool.hatch.build.targets.wheel]
+# Critical: Maps flat src/ folders to the package namespace to prevent global pollution
+packages = [
+    "src/adapter",
+    "src/application",
+    "src/network",
+    "src/startup",
+    "src/ui"
+]
+
+# --- Tool Configurations ---
+
+[tool.pytest.ini_options]
+# Test discovery and import paths
+pythonpath = ["src"]
+testpaths = ["tests/unit", "tests/integration"]
+addopts = "-v"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+# CI coverage threshold
+fail_under = 70
+show_missing = true
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    ".cache",
+    "tests"
+]
+
+[tool.radon]
+exclude = "tests/*"
+show_complexity = true
