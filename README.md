@@ -1,8 +1,8 @@
 # Projekt: SuperSuperHirn (SoSe 26)
 
 ## 🎯 Projektauftrag
-Entwicklung einer erweiterten digitalen Version des Spieleklassikers "Superhirn" (Mastermind). 
-Das Spiel wird in **Python** entwickelt und als native Anwendung für Windows, macOS und Linux ausgeliefert. 
+Entwicklung einer erweiterten digitalen Version des Spieleklassikers "Superhirn" (Mastermind).
+Das Spiel wird in **Python** entwickelt und als native Anwendung für Windows, macOS und Linux ausgeliefert.
 
 **Besonderheiten:**
 - **Erweiterte Komplexität:** 5 Steckplätze (Pins) und 8 wählbare Farben.
