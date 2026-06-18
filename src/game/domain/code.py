@@ -1,8 +1,9 @@
+
 from .slot import Slot
 
 
 class Code:
-    LENGTH: int = 4
+    LENGTH: int = 5
 
     def __init__(self):
         self._code: tuple[Slot, ...] = tuple(Slot() for _ in range(self.LENGTH))

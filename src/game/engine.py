@@ -69,7 +69,7 @@ class GameEngine(ForGameAdministration, ForConfiguringGame, ForCodeMaking, ForCo
 
     def reset_configuration(self):
         print("-> setze Config zurück auf Standard...")
-        self.config.difficulty = "normal" #Standartwert
+        self.config.difficulty = "normal" #Standardwert
         self.persisting_config_port.save_config(self.config) #Speichere über Standard Port.
 
     def get_language(self) -> str:
@@ -81,15 +81,15 @@ class GameEngine(ForGameAdministration, ForConfiguringGame, ForCodeMaking, ForCo
     # --- ForCodeMaking Implementierung
 
     def set_secret_code(self, code: tuple[int, ...]) -> None:
-        print("f-> Setze Geheimen Code: {code}")
+        print(f"-> Setze Geheimen Code: {code}")
 
     def give_feedback(self, code: tuple[int, ...]) -> None:
-        print("f-> Gib Antwort auf Spielrunde {code}")
+        print(f"-> Gib Antwort auf Spielrunde {code}")
 
 
     # --- ForCodeBreaking Implementierung
     def submit_guess(self, guess: list[int]) -> None:
-        print("f-> Spieler hat folgenden Versuch abgegeben: {guess}")
+        print(f"-> Spieler hat folgenden Versuch abgegeben: {guess}")
         #Überprüfe ob der Guess mit Secret Code übereinstimmt
 
     def get_attempts(self) -> list[list[int]]:
