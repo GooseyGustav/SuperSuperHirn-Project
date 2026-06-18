@@ -119,3 +119,6 @@ dmypy.json
 
 # local folder for some docs
 local_files/
+
+# pycharm config files
+.idea/
