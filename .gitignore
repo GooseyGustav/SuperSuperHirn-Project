@@ -116,3 +116,6 @@ dmypy.json
 
 # MacOS specific files
 .DS_Store
+
+# local folder for some docs
+local_files/
