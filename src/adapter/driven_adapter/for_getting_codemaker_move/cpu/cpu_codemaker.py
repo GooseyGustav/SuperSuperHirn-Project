@@ -39,7 +39,7 @@ class CpuCodemaker(ForGettingCodemakerMove):
         Returns:
             list[int]: A list of exactly 5 integers, each in the range 1-8 representing the hidden color sequence.
         """
-        
+
         return [
             random.randint(self.MIN_COLOR, self.MAX_COLOR)
             for _ in range(self.CODE_LENGTH)
@@ -61,13 +61,13 @@ class CpuCodemaker(ForGettingCodemakerMove):
                 - 8 for correct color in correct position (black peg)
                 - 7 for correct color in wrong position (white peg)
         """
-        
+
         secret_remaining = []
         guess_remaining = []
 
         black_pegs = 0
         # Calculate black pegs by iterating over the secret and guess and only save remaining values.
-        for s, g in zip(secret, guess): 
+        for s, g in zip(secret, guess):
             if s == g:
                 black_pegs += 1
             else:
