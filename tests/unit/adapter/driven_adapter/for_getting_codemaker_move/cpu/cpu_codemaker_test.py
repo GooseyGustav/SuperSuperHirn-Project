@@ -1,7 +1,7 @@
 import pytest
 import random
 
-from src.adapter.driven_adapter.for_getting_codemaker_move.cpu.cpu_codemaker import CpuCodemaker
+from adapter.driven_adapter.for_getting_codemaker_move.cpu.cpu_codemaker import CpuCodemaker
 
 @pytest.fixture
 def codemaker():
