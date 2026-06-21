@@ -31,10 +31,10 @@ dev = [
 # Critical: Maps flat src/ folders to the package namespace to prevent global pollution
 packages = [
     "src/adapter",
-    "src/application",
+    "src/app",
     "src/network",
     "src/startup",
-    "src/ui"
+    "src/gui"
 ]
 
 # --- Tool Configurations ---
