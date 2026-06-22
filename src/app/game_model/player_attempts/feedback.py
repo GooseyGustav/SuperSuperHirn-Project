@@ -15,7 +15,6 @@ class Feedback:
         self.white_pins = white_pins
         self.status = status  # default FINAL; BLIND_TRIAL passes PROVISIONAL
 
-    def get_status(self) -> tuple[FeedbackStatus, int, int]:
-        """Docstring for get_status.
-        # Tuple<FeedbackStatus, white: int, black: int>
-        """
+    def get_status(self) -> FeedbackStatus:
+        """Docstring for get_status."""
+        return self.status
