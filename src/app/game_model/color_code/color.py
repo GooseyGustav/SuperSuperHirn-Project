@@ -2,7 +2,12 @@ from enum import Enum
 
 
 class Color(Enum):
-    """Docstring for Color. int mit .value, string z.B. "RED" mit .name"""
+    """Emumeration of supported colors for the secret code and guesses.
+
+    Use `ENUM_OBJECT.value` to access the numeric value and `ENUM_OBJECT.name` to access the color name
+    as a string.
+    For example: `Color.RED.value == 1` and `Color.RED.name == "RED"`.
+    """
 
     RED = 1
     GREEN = 2
