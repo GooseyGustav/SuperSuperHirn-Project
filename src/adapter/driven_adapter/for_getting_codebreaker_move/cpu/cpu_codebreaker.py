@@ -8,6 +8,7 @@ Code = tuple[int, int, int, int, int]
 Feedback = tuple[int, ...]
 Attempt = tuple[Code, Feedback, str]
 
+
 class CpuCodebreaker(ForGettingCodebreakerMove):
     """
     CPU implementation of a Mastermind codebreaker using candidate elimination
@@ -36,11 +37,11 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
     _OPENING_GUESS = (1, 1, 2, 2, 3)
 
     def __init__(self) -> None:
-            # The entire Codespace of all possible code combinations
-            self._all_codes = list(
-                itertools.product(range(1, CpuCodebreaker.NUM_COLORS + 1), repeat=CpuCodebreaker.CODE_LENGTH)
-            )
-            self._remaining_candidates = self._all_codes.copy()
+        # The entire Codespace of all possible code combinations
+        self._all_codes = list(
+            itertools.product(range(1, CpuCodebreaker.NUM_COLORS + 1), repeat=CpuCodebreaker.CODE_LENGTH)
+        )
+        self._remaining_candidates = self._all_codes.copy()
 
     def get_guess(self, attempt_list: list[Attempt]) -> list[int]:
         """
@@ -95,7 +96,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
                 candidates = self._filter_by_exact_feedback(candidates, guess, feedback)
             else:
                 candidates = self._filter_by_provisional_feedback(candidates, guess, feedback)
-            
+
             # Only happens, if the feedback given to a guess is falsy, hence the secret can no longer be determined.
             if not candidates:
                 return [random.choice(self._all_codes)]
@@ -158,7 +159,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         An empty attempt list is considered valid because it represents the
         start of a game before any guesses have been made.
         """
-        
+
         if len(attempt_list) == 0:
             return True
 
@@ -200,9 +201,9 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
 
     @staticmethod
     def _calc_candidate_guess_final_match(
-        secret: Code, 
+        secret: Code,
         guess: Code
-        ) -> tuple[int, int]:
+    ) -> tuple[int, int]:
         """
         Compute the exact Mastermind score for a candidate secret code and a
         guess.
@@ -230,7 +231,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
             white += min(secret_remaining.count(color), guess_remaining.count(color))
 
         return black, white
-    
+
     @staticmethod
     def _calc_candidate_guess_provisional_match(
         secret: Code,
