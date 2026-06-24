@@ -47,4 +47,3 @@ class ForGettingCodemakerMove(ABC):
             or if game_mode = BLIND_TRIAL:
             [number-of-BLACK-pins, number-of-WHITE-pins, guess-status]
         """
-        

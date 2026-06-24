@@ -24,4 +24,3 @@ class ForGettingCodebreakerMove(ABC):
             the Codebreaker's next guess as a list of ints representing the colors
             in that order.
         """
-
