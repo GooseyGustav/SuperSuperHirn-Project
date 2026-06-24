@@ -123,7 +123,7 @@ class GameEngine:
     def get_game_obj(self) -> Game: ...
 
     def _assert_code_legal(self, code: list[int]) -> None:
-        """Validate the raw code list from a port."""
+        """Validate the raw code list from a port that represents a secret code or guess."""
         if len(code) != CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
 
