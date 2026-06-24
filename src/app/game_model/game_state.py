@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class Gamestate(Enum):
-    """Enumaration of possible game states the round can be in.
+    """Enumeration of possible game states the round can be in.
 
     The game state describes the current lifecycle phase of a round.
 
