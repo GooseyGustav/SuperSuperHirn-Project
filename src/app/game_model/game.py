@@ -7,6 +7,9 @@ from app.game_model.player_attempts.attempt import Attempt
 from app.game_model.player_attempts.feedback import Feedback
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 
+# from app.game_management.game_config_management.code_constants import CodeConstants TODO entfernen oder nutzen?
+from app.game_model.player_attempts.guess import Guess
+
 
 class Game:
     """Represents the board state of one game round.
@@ -57,7 +60,7 @@ class Game:
 
         self._validate_code(code, "Secret code")
 
-        slots = [Slot(color) for color in code]
+        slots = [Slot(Color(color)) for color in code]
         self.secret_code = Code((self.code_length, slots))
 
     def set_guess(self, guess: list[int]) -> None:
@@ -88,10 +91,10 @@ class Game:
 
         self._validate_code(guess, "Guess")
 
-        slots = [Slot(color) for color in guess]
+        slots = [Slot(Color(color)) for color in guess]
         guess_code = Code((self.code_length, slots))
 
-        self.current_attempt = Attempt(guess_code)
+        self.current_attempt = Attempt(Guess(guess_code))
 
     def set_feedback(self, feedback: list[int]) -> None:
         """Add feedback for the current attempts.
@@ -109,6 +112,11 @@ class Game:
 
         self._validate_feedback(feedback)
 
+        # set previuous attempts in attempt_list to FINAL
+        if self.game_mode == Gamemode.BLIND_TRIAL:
+            self.convert_provision_to_final()
+
+        # current attmept is PROVISIONAL if game mode is Blind Trial, else its Final
         status = FeedbackStatus.PROVISIONAL if self.game_mode == Gamemode.BLIND_TRIAL else FeedbackStatus.FINAL
 
         feedback_obj = Feedback(feedback[0], feedback[1], status)
@@ -119,9 +127,15 @@ class Game:
     def convert_provision_to_final(self) -> None:
         """Convert provisional feedback to final feedback.
 
-        This is relevant for Blind Trial mode.
+        This is relevant for Blind Trial mode. It iterates through all attempts in attempt_list and sets the status on
+        FINAL. This method is called in set_feedback() right before the new feedback of the current attempt is set.
+        Therefore all previous attepmts will be set FINAL and the newest attempt will be PROVISIONAL.
         """
-        # TODO
+        # for safety
+        for attempt in self.attempt_list:
+            feedback = attempt.get_feedback()
+            if feedback is not None and feedback.get_status() == FeedbackStatus.PROVISIONAL:
+                feedback.status = FeedbackStatus.FINAL  # TODO prüfen, ob feedback eine set_feedback-Methode hat
 
     def get_game_mode(self) -> Gamemode:
         """returns the current game_mode of the round.
@@ -140,7 +154,7 @@ class Game:
             game_state (Gamestate): the gamestate of the round.
 
         Raises:
-            TypeError: If `game_state` is not a gamestate.
+            TypeError: If `game_state` is not a Gamestate.
         """
         if not isinstance(game_state, Gamestate):
             raise TypeError("Game state must be a Gamestate.")
