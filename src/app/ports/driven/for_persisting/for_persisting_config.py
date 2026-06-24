@@ -24,8 +24,6 @@ class ForPersistingConfig(ABC):
                     "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
                     "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
                     "network_enabled":      bool,
-                    "number_of_positions":  int,   # 1..9 (default 5) -> Game.CODE_LENGTH
-                    "number_of_colors":     int,   # 1..8 (default 8); bounds the pin range
                     "countdown_millis":     int,   # TIME_TRIAL countdown time, milliseconds
                     "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
                 }
