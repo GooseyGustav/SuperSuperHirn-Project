@@ -73,7 +73,14 @@ from app.ports.driving.for_game_administration import ForGameAdministration
 
 class GameManager(ForGameAdministration, ForConfiguringGame):
     """The GameManager's implementation of the `ForGameAdministration` and
-    `ForConfiguringGame` Ports.
+    `ForConfiguringGame` Ports. Shape of the configuration dict:
+        {
+             "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+             "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
+             "network_enabled":      bool,
+             "countdown_millis":     int,   # TIME_TRIAL countdown time, milliseconds
+             "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
+         }
     """
 
     def __init__(
@@ -105,24 +112,33 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         config_manager = ConfigManager(config_dict)
         game_config = config_manager.create_config_obj()
         self._config_manager = config_manager
-
         players_config = {
             **config_dict,
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
         }
-
         codemaker, codebreaker = self._assembling_players.assemble_players(players_config)
-
         self._game_engine = GameEngine(game_config)
+        self._game_engine = GameEngine(game_config)
+        self._game_engine.run(codemaker, codebreaker)
+        game_data = self._game_engine.create_game_persist_object()
+        self._persist_game.save_game(game_data)
 
-        # TODO: "run engine → persist (Step 4 tail); persist-policy still open: finished games vs interrupted-only."
+    def start_game_delete_interrupted(self) -> None:
+        """Starts the game and deletes the interrupted game (clears the board and
+        starts a new game).
+        """
+        self._persist_game.delete_game()
+        self.start_game()
 
-    def start_game_delete_interrupted(self) -> None: ...
+    def resume_interrupted(self) -> None:
+        """Resumes the interrupted game (loads the saved game and continues the game)."""
 
-    def resume_interrupted(self) -> None: ...
-
-    def interrupt_game(self) -> None: ...
+    def interrupt_game(self) -> None:
+        """Interrupts the game (saves the game for a later time and stops it)."""
+        self._game_engine.interrupt_game()
+        game_data = self._game_engine.create_game_persist_object()
+        self._persist_game.save_game(game_data)
 
     def abort_game(self) -> None: ...
 
@@ -138,11 +154,20 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._persist_config.save_config_dict(config)
 
     def load_config(self) -> dict:
-        """Loads the configuration from a file."""
-        return self._persist_config.load_config_dict()
+        """Loads the configuration from a file, loading the default config if no file
+        is found. The method validates the loaded configuration before returning it.
+        Returns:
+            A dict containing the loaded configuration.
+        """
+        config = self._persist_config.load_config_dict()
+        self._validate_config(config)
+        return config
 
     def reset_config(self) -> None:
-        """Resets the configuration to the default values."""
+        """Resets the configuration to the default values by delegating to the Adapter in
+        charge of persisting the Config. The default values will be validated at the start
+        of the next game.
+        """
         self._persist_config.reset_to_default()
 
     @staticmethod
