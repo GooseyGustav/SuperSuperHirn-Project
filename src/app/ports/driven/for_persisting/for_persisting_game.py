@@ -22,21 +22,21 @@ class ForPersistingGame(ABC):
             describes an interrupted game for future resuming. Shape:
 
                 {
-                    "gamemode":       str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
-                    "gamestate":      str,   # NEW | RUNNING | INTERRUPTED | WON
+                    "gamemode":          str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+                    "gamestate":         str,   # NEW | RUNNING | INTERRUPTED | WON
                                              #   | LOST_TIMEOUT | LOST_ATTEMPTS
-                    "codeLength":     int,   # 1..9 (default 5)
-                    "numberOfColors": int,   # 1..8 (default 8); bounds the pin range
-                    "maxAttempts":    int,   # fixed constant (10); snapshot only
-                    "secretCode":     list[int],   # len == codeLength,
-                                                   #   each pin 1..numberOfColors
-                    "attemptList": [               # 0..maxAttempts rows
+                    "code_length":       int,   # 1..9 (default 5)
+                    "number_of_colors":  int,   # 1..8 (default 8); bounds the pin range
+                    "max_attempts":      int,   # fixed constant (10); snapshot only
+                    "secret_code":       list[int],   # len == codeLength,
+                                                      #   each pin 1..numberOfColors
+                    "attempt_list": [                 # 0..maxAttempts rows
                         {
                             "guess": list[int],    # len == codeLength,
                                                    #   each pin 1..numberOfColors
                             "feedback": {
-                                "blackPins": int,  # 0..codeLength
-                                "whitePins": int,  # 0..codeLength,
+                                "black_pins": int,  # 0..codeLength
+                                "white_pins": int,  # 0..codeLength,
                                                    #   black + white <= codeLength
                                 "status":    str,  # FINAL | PROVISIONAL
                             },
@@ -44,7 +44,7 @@ class ForPersistingGame(ABC):
                         ...
                     ],
                     # mode / resume extras:
-                    "remainingTimeMillis": int,  # TIME_TRIAL only; milliseconds
+                    "remaining_time_millis": int,  # TIME_TRIAL only; milliseconds
                     "matchup": dict,             # opaque to the core, round-tripped only
                 }
 
