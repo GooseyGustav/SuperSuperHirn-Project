@@ -15,6 +15,11 @@ class Code:
         """
         self.code = code
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Code):
+            return NotImplemented
+        return all(a.color == b.color for a, b in zip(self.code[1], other.code[1]))
+
     def set_code(self, code: list[int]) -> None: ...
 
     def get_code(self) -> list[Slot]: ...
