@@ -134,8 +134,8 @@ class Game:
         """Convert provisional feedback to final feedback.
 
         This is mainly relevant for Blind Trial mode.
-
         """
+        # TODO
 
     def get_game_mode(self) -> Gamemode:
         """returns the current game_mode of the round.
@@ -145,9 +145,24 @@ class Game:
         """
         return self.game_mode
 
-    # TODO: eine set_game_state-Methode
+    def set_game_state(self, game_state: Gamestate) -> None:
+        """Set the current game state of the round.
+
+        Gets used by the GameManager to set the game state (For example, to interrupt a game).
+
+        Args:
+            gamestate (Gamestate): the gamestate of the round.
+
+        Raises:
+            TypeError: If `game_state` is not a an actual gamestate.
+        """
+        if not isinstance(game_state, Gamestate):
+            raise TypeError("Game state must be a Gamestate.")
+
+        self.game_state = game_state
 
     def _validate_code(self, code: list[int], code_name: str) -> None:
+        """Helper function to validate codes as lists of integers."""
         if not isinstance(code, list):
             raise TypeError(f"{code_name} must be provided as a list of integers.")
 
