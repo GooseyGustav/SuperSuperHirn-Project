@@ -1,13 +1,13 @@
+from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
 
 
 class Code:
-    """Docstring for Code."""
+    """A validated colour sequence used for both guesses and the secret code.
 
-    # - **Responsibility:** a validated colour sequence (used for guesses and the secret).
-    # - **Attributes PEP8:**
-    #     code: tuple[int, list[Slot]]
-    #     UML version: - code: Tuple<length: int, code: List<Slot>>
+    Internally stores a tuple of (length: int, slots: list[Slot]).
+    The length mirrors len(slots) and is kept for UML compatibility.
+    """
 
     def __init__(self, code: tuple[int, list[Slot]]) -> None:
         """Constructs a Code Object from a tuple with the length of the code (int)
@@ -15,6 +15,21 @@ class Code:
         """
         self.code = code
 
-    def set_code(self, code: list[int]) -> None: ...
+    def __eq__(self, other: object) -> bool:
+        """Return True if both codes have identical colors in every slot."""
+        if not isinstance(other, Code):
+            return NotImplemented
+        return all(a.color == b.color for a, b in zip(self.code[1], other.code[1]))
 
-    def get_code(self) -> list[Slot]: ...
+    def set_code(self, code: list[int]) -> None:
+        """Replace the current sequence with a new one built from integer color IDs.
+
+        Each integer is converted to a Color and wrapped in a Slot.
+        Raises ValueError if any ID does not map to a known Color.
+        """
+        slots = [Slot(Color(c)) for c in code]
+        self.code = (len(slots), slots)
+
+    def get_code(self) -> list[Slot]:
+        """Return the list of Slots that make up this code."""
+        return self.code[1]
