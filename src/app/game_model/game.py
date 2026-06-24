@@ -37,6 +37,7 @@ class Game:
     """
 
     MAX_ATTEMPTS = 10  # not user-changeable (if it were: GameEngine would need to inject int in cotr)
+    VALID_COLOR_VALUES = frozenset(color.value for color in Color)
 
     def __init__(
         self,
@@ -73,18 +74,7 @@ class Game:
                 "Secret code can only be set when the game state is NEW or an INTERRUPTED games is resumed."
             )
 
-        if not isinstance(code, list):
-            raise TypeError("Secret code must be provided as a list of integers.")
-
-        if not all(isinstance(color, int) for color in code):
-            raise TypeError("Secret code must contain only integer values.")
-
-        if len(code) != self.CODE_LENGTH:
-            raise ValueError(f"Secret code must contain exactly {self.CODE_LENGTH} colors.")
-
-        valid_color_values = [color.value for color in Color]
-        if not all(color in valid_color_values for color in code):
-            raise ValueError("Secret code contains values outside the color enumeration.")
+        self._validate_code(code, "Secret code")
 
         slots = [Slot(color) for color in code]
         self.secret_code = Code((self.CODE_LENGTH, slots))
@@ -115,18 +105,7 @@ class Game:
         if self.current_attempt is not None:
             raise RuntimeError("The current attempt is still waiting for feedback.")
 
-        if not isinstance(guess, list):
-            raise TypeError("Guess must be provided as a list of integers.")
-
-        if not all(isinstance(color, int) for color in guess):
-            raise TypeError("Guess must contain only integer values.")
-
-        if len(guess) != self.CODE_LENGTH:
-            raise ValueError(f"Guess must contain exactly {self.CODE_LENGTH} colors.")
-
-        valid_color_values = [color.value for color in Color]
-        if not all(color in valid_color_values for color in guess):
-            raise ValueError("Guess contains values outside the color enumeration.")
+        self._validate_code(guess, "Guess")
 
         slots = [Slot(color) for color in guess]
         guess_code = Code((self.CODE_LENGTH, slots))
@@ -139,6 +118,9 @@ class Game:
         A current attempt exists after the Codebreaker has submitted a guess, but
         before feedback has been added. After feedback is set, the attempt is moved
         to `attempt_list` and `current_attempt` is reset to None.
+
+        Args:
+            feedback (list[int]): feedback as a list of integers
         """
 
         if self.current_attempt is None:
@@ -148,7 +130,12 @@ class Game:
         self.attempt_list.append(self.current_attempt)
         self.current_attempt = None
 
-    def convert_provision_to_final(self) -> None: ...
+    def convert_provision_to_final(self) -> None:
+        """Convert provisional feedback to final feedback.
+
+        This is mainly relevant for Blind Trial mode.
+
+        """
 
     def get_game_mode(self) -> Gamemode:
         """returns the current game_mode of the round.
@@ -156,6 +143,22 @@ class Game:
         Returns:
             Gamemode: current game mode
         """
+        return self.game_mode
 
     # TODO: eine set_game_state-Methode
-    # TODO: Hilfsfunktion, die einen Code überprüft (is list?, alles Integer?, correkte Farbwerte?, richtige Länge?, )
+
+    def _validate_code(self, code: list[int], code_name: str) -> None:
+        if not isinstance(code, list):
+            raise TypeError(f"{code_name} must be provided as a list of integers.")
+
+        for color in code:
+            if not isinstance(color, int):
+                raise TypeError(f"{code_name} must contain only integer values.")
+
+        if len(code) != self.CODE_LENGTH:
+            raise ValueError(f"{code_name} must contain exactly {self.CODE_LENGTH} colors.")
+
+        valid_color_values = self.VALID_COLOR_VALUES
+        for color in code:
+            if color not in valid_color_values:
+                raise ValueError(f"{code_name} contains values outside the color enumeration.")
