@@ -32,7 +32,7 @@ class ForPersistingGame(ABC):
                                                       #   each pin 1..numberOfColors
                     "attempt_list": [                 # 0..MAX_ATTEMPTS rows
                         {
-                            "guess": list[int],    # len == codeLength
+                            "guess": list[int],    # len == number_of_positions (fixed constant)
                             "feedback": {
                                 "black_pins": int,  # 0..codeLength
                                 "white_pins": int,  # 0..codeLength,
