@@ -114,6 +114,7 @@ class GameEngine:
 
         return self.game
 
+    # braucht anderen name: namenkonflikt mit gamemanager (bedeutet dort mit speichern, hier nicht)
     def interrupt_game(self) -> None: ...
 
     def resume(self, game_data: dict) -> None: ...
