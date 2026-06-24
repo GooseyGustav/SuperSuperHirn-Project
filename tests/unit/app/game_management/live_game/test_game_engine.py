@@ -15,8 +15,8 @@ def default_config():
         gamemode=MagicMock(),
         user_role=MagicMock(),
         network_enabled=False,
-        number_of_positions=CodeConstants.NUMBER_OF_PINS,  # NUMBER_OF_PINS.value ?
-        number_of_colors=CodeConstants.NUMBER_OF_COLORS,  # NUMBER_OF_COLORS.value ?
+        number_of_positions=CodeConstants.NUMBER_OF_PINS,
+        number_of_colors=CodeConstants.NUMBER_OF_COLORS,
         countdown_millis=0,
         delay_millis=0,
     )
