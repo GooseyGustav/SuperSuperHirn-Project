@@ -18,14 +18,12 @@ class ForConfiguringGame(ABC):
         Args:
             config_dict: the game configuration as a dictionary. Shape:
 
-             {
-                "gamemode":          str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
-                "userRole":          str,   # CODEMAKER | CODEBREAKER | OBSERVER
-                "networkEnabled":    bool,
-                "numberOfPositions": int,   # 1..9 (default 5)
-                "numberOfColors":    int,   # 1..8 (default 8)
-                "countdownMillis":   int,   # milliseconds
-                "delayMillis":       int,   # milliseconds
+            {
+                "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+                "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
+                "network_enabled":      bool,
+                "countdown_millis":     int,   # TIME_TRIAL countdown time, milliseconds
+                "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
             }
 
             Core App validates the config before saving it.

@@ -21,16 +21,14 @@ class ForPersistingConfig(ABC):
             A dict containing configuration selections. Shape:
 
                 {
-                    "gamemode":          str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
-                    "userRole":          str,   # CODEMAKER | CODEBREAKER | OBSERVER
-                    "networkEnabled":    bool,
-                    "numberOfPositions": int,   # 1..9 (default 5) -> Game.CODE_LENGTH
-                    "numberOfColors":    int,   # 1..8 (default 8); bounds the pin range
-                    "countdownMillis":   int,   # TIME_TRIAL countdown time, milliseconds
-                    "delayMillis":       int,   # OBSERVER mode: ms between auto-moves so progress is visible
+                    "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+                    "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
+                    "network_enabled":      bool,
+                    "countdown_millis":     int,   # TIME_TRIAL countdown time, milliseconds
+                    "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
                 }
 
-            maxAttempts is intentionally absent -- it is a fixed constant, not available
+            max_attempts is intentionally absent -- it is a fixed constant, not available
             for User selection. Validity check by core App.
             If no User Config is available, the default config is used.
         """
