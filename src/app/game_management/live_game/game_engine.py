@@ -44,8 +44,10 @@
 # - **Instantiated by:** `GameManager` (per game).
 
 
+from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_model.game import Game
+from app.game_model.game_state import Gamestate
 
 
 class GameEngine:
@@ -58,10 +60,59 @@ class GameEngine:
 
     def __init__(self, game_config: Config) -> None:
         self.game_config = game_config
+        self.shutdown_requested = False
 
-    def run(self, codemaker, codebreaker) -> Game: ...
+    def run(self, codemaker, codebreaker) -> Game:
+        """Execute the core gameplay loop.
 
-    def create_game_persist_object(self) -> object: ...
+        Queries the secret code from the codemaker, then repeatedly asks
+        the codebreaker for guesses and the codemaker for feedback until
+        the game is won, lost, or interrupted.
+
+        Args:
+            codemaker: The port/adapter acting as the codemaker.
+            codebreaker: The port/adapter acting as the codebreaker.
+
+        Returns:
+            Game: The final game state containing the attempt history.
+        """
+        self.game = Game(game_mode=self.game_config.gamemode, code_length=CodeConstants.NUMBER_OF_PINS)
+
+        secret_code_list = codemaker.get_secret_code()
+
+        # Validate the secret code before proceeding
+        self._assert_code_legal(secret_code_list)
+
+        if not self.game_config.network_enabled:
+            # Set the secret code in the game state only if network is not enabled
+            self.game.set_secret_code(secret_code_list)
+
+        self.game.game_state = Gamestate.RUNNING
+
+        while not self.shutdown_requested:
+            guess_list = codebreaker.get_guess()
+            self._assert_code_legal(guess_list)
+            self.game.set_guess(guess_list)
+
+            feedback_list = codemaker.get_feedback(secret_code_list, guess_list)
+            self._assert_feedback_legal(feedback_list)
+            self.game.set_feedback(feedback_list)
+
+            # Win condition: All guessed pins are completely correct (black pegs)
+            if feedback_list.count(8) == CodeConstants.NUMBER_OF_PINS:
+                self.game.game_state = Gamestate.WON
+                break
+
+            # Loss condition: Maximum number of attempts reached
+            if len(self.game.attempt_list) >= Game.MAX_ATTEMPTS:
+                self.game.game_state = Gamestate.LOST
+                break
+
+        # Defensive catch: Mark game as interrupted if loop exited via flag
+        if self.shutdown_requested:
+            self.game.game_state = Gamestate.INTERRUPTED
+
+        return self.game
 
     def interrupt_game(self) -> None: ...
 
@@ -72,15 +123,18 @@ class GameEngine:
     def get_game_obj(self) -> Game: ...
 
     def _assert_code_legal(self, code: list[int]) -> None:
-        """Docstring for _assert_code_legal."""
-        # check
-        # len(code) == self.game_config.number_of_positions
-        # and
-        # all(1 <= c <= self.game_config.number_of_colors for c in code)\
+        """Validate the raw code list from a port."""
+        if len(code) != CodeConstants.NUMBER_OF_PINS:
+            raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
+
+        if not all(1 <= c <= CodeConstants.NUMBER_OF_COLORS for c in code):
+            raise ValueError("Code contains invalid color integers.")
 
     def _assert_feedback_legal(self, feedback: list[int]) -> None:
-        """Docstring for _assert_feedback_legal."""
-        # check :
-        # len(feedback) <= self.game_config.number_of_positions
-        # and
-        # all(c in (7, 8) for c in feedback)
+        """Validate the raw feedback list from a port."""
+        if len(feedback) > CodeConstants.NUMBER_OF_PINS:
+            raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
+
+        # 7 = white peg, 8 = black peg
+        if not all(c in (7, 8) for c in feedback):
+            raise ValueError("Feedback must only contain 7 (white) or 8 (black).")
