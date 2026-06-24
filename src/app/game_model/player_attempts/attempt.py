@@ -10,7 +10,7 @@ from app.game_model.player_attempts.guess import Guess
 class Attempt:
     """Docstring for Attempt."""
 
-    def __init__(self, guess: Guess, feedback: Feedback) -> None:
+    def __init__(self, guess: Guess, feedback: Feedback | None = None) -> None:
         self.guess = guess
         self.feedback = feedback
 
