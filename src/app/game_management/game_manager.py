@@ -60,6 +60,8 @@
 # - gibt dieses Object als dict zum Port
 
 
+import sys
+
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
@@ -83,15 +85,21 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
          }
     """
 
+    # ** Attributes: ** `configManager: ConfigManager
+    # `, `gameEngine: GameEngine
+    # `, `persistConfigPort:
+
+    # ForPersistingConfig`, `assemblingPlayersPort: ForAssemblingPlayers`, `persistGamePort: ForPersistingGame`
+
     def __init__(
         self,
-        persist_config: ForPersistingConfig,
-        assembling_players: ForAssemblingPlayers,
-        persist_game: ForPersistingGame,
+        persist_config_port: ForPersistingConfig,
+        assembling_players_port: ForAssemblingPlayers,
+        persist_game_port: ForPersistingGame,
     ):
-        self._persist_config = persist_config
-        self._assembling_players = assembling_players
-        self._persist_game = persist_game
+        self._persist_config_port = persist_config_port
+        self._assembling_players_port = assembling_players_port
+        self._persist_game_port = persist_game_port
 
         # per game, declared absent at first:
         self._config_manager: ConfigManager | None = None
@@ -117,41 +125,69 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
         }
-        codemaker, codebreaker = self._assembling_players.assemble_players(players_config)
-        self._game_engine = GameEngine(game_config)
+        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config)
         self._game_engine = GameEngine(game_config)
         self._game_engine.run(codemaker, codebreaker)
         game_data = self._game_engine.create_game_persist_object()
-        self._persist_game.save_game(game_data)
+        self._persist_game_port.save_game(game_data)
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
         starts a new game).
         """
-        self._persist_game.delete_game()
+        self._persist_game_port.delete_game()
         self.start_game()
 
     def resume_interrupted(self) -> None:
         """Resumes the interrupted game (loads the saved game and continues the game)."""
+        game_data = self._persist_game_port.load_game()
+        config_dict = {**self.load_config(), "gamemode": game_data["gamemode"]}
+        config_manager = ConfigManager(config_dict)
+        game_config = config_manager.create_config_obj()
+        self._config_manager = config_manager
+        self._game_engine = GameEngine(game_config)
+        self._game_engine.resume(game_data)  # still to be written
+        players_config = {
+            **config_dict,
+            "number_of_positions": game_config.number_of_positions,
+            "number_of_colors": game_config.number_of_colors,
+        }
+        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config)
+        self._game_engine.run(codemaker, codebreaker)
 
+    # renamed from interrupt_game(self) because of naming conflict with
+    # GameEngine.interrupt_game() with different effect (GamEngine does not save).
     def interrupt_game(self) -> None:
         """Interrupts the game (saves the game for a later time and stops it)."""
         self._game_engine.interrupt_game()
         game_data = self._game_engine.create_game_persist_object()
-        self._persist_game.save_game(game_data)
+        self._persist_game_port.save_game(game_data)
 
-    def abort_game(self) -> None: ...
+    def abort_game(self) -> None:
+        """Aborts the game (clears the board and stops the game)."""
+        if self._game_engine is not None:
+            self._game_engine.interrupt_game()  # brauch anderen Name (namenskonflikt)
+        self._game_engine = None
+        self._config_manager = None
 
-    def restart_game(self) -> None: ...
+    def restart_game(self) -> None:
+        """Restarts the game (clears the board and starts a new game)."""
+        self.abort_game()
+        self.start_game()
 
-    def exit_application(self) -> None: ...
+    def exit_application(self) -> None:
+        """Exits the application (closes the entire program), saving the
+        current game beforehand."""
+        if self._game_engine is not None:
+            self._game_engine.interrupt_game()
+        sys.exit()
 
     # ForConfiguringGame methods
 
     def save_config(self, config: dict) -> None:
         """Validates the provided configuration and if valid, saves it to a file."""
         self._validate_config(config)
-        self._persist_config.save_config_dict(config)
+        self._persist_config_port.save_config_dict(config)
 
     def load_config(self) -> dict:
         """Loads the configuration from a file, loading the default config if no file
@@ -159,16 +195,16 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         Returns:
             A dict containing the loaded configuration.
         """
-        config = self._persist_config.load_config_dict()
+        config = self._persist_config_port.load_config_dict()
         self._validate_config(config)
         return config
 
     def reset_config(self) -> None:
-        """Resets the configuration to the default values by delegating to the Adapter in
-        charge of persisting the Config. The default values will be validated at the start
-        of the next game.
+        """Resets the configuration to the default values by delegating to the
+        Adapter in charge of persisting the Config. The default values will be
+        validated at the start of the next game.
         """
-        self._persist_config.reset_to_default()
+        self._persist_config_port.reset_to_default()  # adapter takes care of this
 
     @staticmethod
     def _validate_config(config: dict) -> None:
