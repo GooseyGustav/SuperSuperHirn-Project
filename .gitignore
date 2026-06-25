@@ -122,3 +122,6 @@ local_files/
 
 # pycharm config files
 .idea/
+
+# vscode
+.vscode/settings.json
