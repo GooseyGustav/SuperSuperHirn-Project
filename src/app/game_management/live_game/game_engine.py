@@ -123,6 +123,8 @@ class GameEngine:
 
     def get_game_obj(self) -> Game: ...
 
+    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
+    # TODO: Brauchen evtl noch KeyError
     def _assert_code_legal(self, code: list[int]) -> None:
         """Validate the raw code list from a port that represents a secret code or guess."""
         if len(code) != CodeConstants.NUMBER_OF_PINS:
@@ -131,6 +133,8 @@ class GameEngine:
         if not all(1 <= c <= CodeConstants.NUMBER_OF_COLORS for c in code):
             raise ValueError("Code contains invalid color integers.")
 
+    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
+    # TODO: Brauchen evtl noch KeyError
     def _assert_feedback_legal(self, feedback: list[int]) -> None:
         """Validate the raw feedback list from a port."""
         if len(feedback) > CodeConstants.NUMBER_OF_PINS:
