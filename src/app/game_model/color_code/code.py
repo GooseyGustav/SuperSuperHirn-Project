@@ -19,7 +19,10 @@ class Code:
         """Return True if both codes have identical colors in every slot."""
         if not isinstance(other, Code):
             return NotImplemented
-        return all(a.color == b.color for a, b in zip(self.code[1], other.code[1]))
+
+        return len(self.code[1]) == len(other.code[1]) and all(
+            a.color == b.color for a, b in zip(self.code[1], other.code[1])
+        )
 
     def set_code(self, code: list[int]) -> None:
         """Replace the current sequence with a new one built from integer color IDs.
