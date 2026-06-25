@@ -46,8 +46,15 @@
 
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
+from app.game_model.color_code.code import Code
+from app.game_model.color_code.color import Color
+from app.game_model.color_code.slot import Slot
 from app.game_model.game import Game
 from app.game_model.game_state import Gamestate
+from app.game_model.player_attempts.attempt import Attempt
+from app.game_model.player_attempts.feedback import Feedback
+from app.game_model.player_attempts.feedback_status import FeedbackStatus
+from app.game_model.player_attempts.guess import Guess
 
 
 class GameEngine:
@@ -56,7 +63,7 @@ class GameEngine:
     # deleted file mentioned in docstring GameSessionManager per modification of
     # Class Reference and Diagram, following discussion with Marlon that it was
     # unnecessary because GameManagement and GameEngine seem to cover everything.
-    # If necessary TODO: reinstate GameSessionManager for threading in TIME_TRIAL
+    # If necessary TODO: reinstate GameSessionManager for threading in TIME_TRIAL (?)
 
     def __init__(self, game_config: Config) -> None:
         self.game_config = game_config
@@ -77,36 +84,44 @@ class GameEngine:
         Returns:
             Game: The final game state containing the attempt history.
         """
-        self.game = Game(game_mode=self.game_config.gamemode, code_length=CodeConstants.NUMBER_OF_PINS)
 
-        secret_code_list = codemaker.get_secret_code()
-
-        # Validate the secret code before proceeding
-        self._assert_code_legal(secret_code_list)
-
-        if not self.game_config.network_enabled:
-            # Set the secret code in the game state only if network is not enabled
-            self.game.set_secret_code(secret_code_list)
+        # create game if not already created through resume() (as called by GameManager)
+        if self.game is None:
+            self.game = Game(game_mode=self.game_config.gamemode, code_length=CodeConstants.NUMBER_OF_PINS)
+        # differentiate between a new game and a resumed game
+        if self.game.secret_code is None:
+            secret_code_as_list = codemaker.get_secret_code()
+            self._assert_code_legal(secret_code_as_list)
+            if not self.game_config.network_enabled:
+                # TODO: check if bad side effects if not set in Game during a network game
+                self.game.set_secret_code(secret_code_as_list)
+        else:  # if code exists in Game object, use it
+            secret_code_as_list = [slot.get_color().value for slot in self.game.secret_code.get_code()]
+            self._assert_code_legal(secret_code_as_list)
 
         self.game.game_state = Gamestate.RUNNING
 
         while not self.shutdown_requested:
-            guess_list = codebreaker.get_guess()
-            self._assert_code_legal(guess_list)
-            self.game.set_guess(guess_list)
+            # board = attempt history translated to the primitive list of tuples the port wants
+            guess_as_list = codebreaker.get_guess(self._board_for_codebreaker())
+            self._assert_code_legal(guess_as_list)
+            self.game.set_guess(guess_as_list)
 
-            feedback_list = codemaker.get_feedback(secret_code_list, guess_list)
+            feedback_list = codemaker.get_feedback(secret_code_as_list, guess_as_list)  # simple int list
             self._assert_feedback_legal(feedback_list)
-            self.game.set_feedback(feedback_list)
+            nr_of_black_pins, nr_of_white_pins = feedback_list[0], feedback_list[1]
+            self.game.set_feedback([nr_of_black_pins, nr_of_white_pins])
 
-            # Win condition: All guessed pins are completely correct (black pegs)
-            if feedback_list.count(8) == CodeConstants.NUMBER_OF_PINS:
+            # Win condition: All guessed pins are completely correct (as black pegs as code pins)
+            # if feedback_list.count(8) == CodeConstants.NUMBER_OF_PINS:
+            # version to conform with Port requirements:
+            if nr_of_black_pins == CodeConstants.NUMBER_OF_PINS:
                 self.game.game_state = Gamestate.WON
                 break
 
             # Loss condition: Maximum number of attempts reached
             if len(self.game.attempt_list) >= Game.MAX_ATTEMPTS:
-                self.game.game_state = Gamestate.LOST
+                self.game.game_state = Gamestate.LOST_ATTEMPTS
                 break
 
         # Defensive catch: Mark game as interrupted if loop exited via flag
@@ -115,22 +130,106 @@ class GameEngine:
 
         return self.game
 
-    # + createGamePersistObject(): Object // beinhaltet auch  numberOfColors, remainingTimeMillis ;
-    # Params entfernt da schon Attribute (self.game, self.clock. self.gameConfig)
-    def create_game_persist_object(self) -> dict: ...
+    def _board_for_codebreaker(self) -> list[tuple[list[int], list[int | str]]]:
+        """Convert the live attempt history (Attempt type) into the list of tuples that
+        the ForGettingCodebreakerMove port declares (each tuple has a guess and the
+        feedback to it). feedback carries [nr-of-black, nr-of-white, status] (status
+        because BLIND_TRIAL needs the provisional/final flag) with types [int, int, str].
 
-    # braucht anderen name: namenkonflikt mit gamemanager (bedeutet dort mit speichern, hier nicht)
-    def interrupt_game(self) -> None: ...
+        TODO: feedback's mixed list could be a dict for clarity (like in persist game data dict shape)
+        """
+        board = []
 
-    def resume(self, game_data: dict) -> None: ...
+        for attempt in self.game.attempt_list:
+            guess_as_int_list = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
+            fb = attempt.get_feedback()
+
+            # instead of list: could be a dict for clarity (like in persist game data dict shape)
+            feedback_for_codebreaker = [fb.black_pins, fb.white_pins, fb.get_status().value]
+            board.append((guess_as_int_list, feedback_for_codebreaker))
+
+        return board
+
+    def create_game_persist_object(self) -> dict:
+        """Save a snapshot of the live game into the Persist dict.
+        Outputs the shape defined by ForPersistingGame.save_game().
+        `matchup` is left empty here and filled by GameManager.
+        """
+        game = self.game
+        secret = [pin.get_color().value for pin in game.secret_code.get_code()] if game.secret_code is not None else []
+
+        attempt_rows = []
+        for attempt in game.attempt_list:
+            guess_as_int_list = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
+            fb = attempt.get_feedback()
+            attempt_rows.append(
+                {
+                    "guess": guess_as_int_list,
+                    "feedback": {
+                        "black_pins": fb.black_pins,
+                        "white_pins": fb.white_pins,
+                        "status": fb.get_status().value,
+                    },
+                }
+            )
+        return {
+            "gamemode": game.game_mode.value,
+            "gamestate": game.game_state.value,
+            "number_of_positions": self.game_config.number_of_positions,
+            "number_of_colors": self.game_config.number_of_colors,
+            "max_attempts": Game.MAX_ATTEMPTS,
+            "secret_code": secret,
+            "attempt_list": attempt_rows,
+            "remaining_time_millis": 0,  # TODO: from Clock once implemented
+            "matchup": {},  # GameManager fills this in
+        }
+
+    # TODO: naming conflict with GameEngine.interrupt_game() with different effect
+    #  (GamEngine does not save, GameManager saves). --> rename here (not in GameManager!)
+    def interrupt_game(self) -> None:
+        """Signal the run loop to stop; run() will marK the game as INTERRUPTED."""
+        self.shutdown_requested = True
+
+    def resume(self, game_data: dict) -> None:
+        """Rebuild the Game from a saved snapshot so run() can continue it.
+
+        Built in gamestate INTERRUPTED; run() will flip the switch to RUNNING.
+
+        Args:
+            game_data: The persisted dict containing the saved game data
+            collected by the GameManager from the ForPersistingGame port.
+            (Shape defined by ForPersistingGame.save_game()/load_game()).
+        """
+
+        code_length = CodeConstants.NUMBER_OF_PINS
+
+        self.game = Game(game_mode=self.game_config.gamemode, code_length=code_length, game_state=Gamestate.INTERRUPTED)
+
+        # Secret code restored for local games.
+        # If ever wished for network games: the remote codemaker owns it.
+        if not self.game_config.network_enabled:
+            secret_code_list = game_data["secret_code"]
+            self._assert_code_legal(secret_code_list)
+            self.game.set_secret_code(secret_code_list)
+
+        for attempt_row in game_data["attempt_list"]:
+            guess_as_list = attempt_row["guess"]
+            self._assert_code_legal(guess_as_list)
+            guess_object = Guess(Code((code_length, [Slot(Color(c)) for c in guess_as_list])))
+            fb = attempt_row["feedback"]
+            feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
+            self.game.attempt_list.append(Attempt(guess_object, feedback_object))
 
     def start_clock(self, time_millis: int) -> bool: ...
 
-    def get_game_obj(self) -> Game: ...
+    def get_game_obj(self) -> Game | None:
+        """Returns the current game object."""
+        return self.game
 
     # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
     # TODO: Brauchen evtl noch KeyError
-    def _assert_code_legal(self, code: list[int]) -> None:
+    @staticmethod
+    def _assert_code_legal(code: list[int]) -> None:
         """Validate the raw code list from a port that represents a secret code or guess."""
         if len(code) != CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
@@ -140,11 +239,31 @@ class GameEngine:
 
     # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
     # TODO: Brauchen evtl noch KeyError
-    def _assert_feedback_legal(self, feedback: list[int]) -> None:
+    @staticmethod
+    def _assert_feedback_legal(feedback: list[int | str]) -> None:
         """Validate the raw feedback list from a port."""
-        if len(feedback) > CodeConstants.NUMBER_OF_PINS:
-            raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
 
-        # 7 = white peg, 8 = black peg
-        if not all(c in (7, 8) for c in feedback):
-            raise ValueError("Feedback must only contain 7 (white) or 8 (black).")
+        # Corrected to fit Port requirements: feedback is not an int list
+        # like [8,8,7] but [x,y] or [x,y,status] (x: nr of black pins,
+        # y: number of white pins, optional status in TIME_TRIAL gamemode)
+        # TODO: check Adapters fulfill Port requirements
+        if len(feedback) not in (2, 3):
+            raise ValueError("Feedback must be [nr-of-black, nr-of-white] or [nr-of-black, nr-of-white, status].")
+
+        black, white = feedback[:2]
+        if not isinstance(black, int) or not isinstance(white, int):
+            raise ValueError("Feedback pin counts must be integers.")
+        if black < 0 or white < 0 or black + white > CodeConstants.NUMBER_OF_PINS:
+            raise ValueError("Feedback pin counts must be non-negative and " "sum to <= code_length.")
+
+        if len(feedback) == 3 and feedback[2] not in ("FINAL", "PROVISIONAL"):
+            raise ValueError("Feedback status must be FINAL or PROVISIONAL.")
+
+        # Previous version expecting feedback to be code with color ints
+        # like [7,7,7]:
+        # if len(feedback) > CodeConstants.NUMBER_OF_PINS:
+        #     raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
+        #
+        # # 7 = white peg, 8 = black peg
+        # if not all(c in (7, 8) for c in feedback):
+        #     raise ValueError("Feedback must only contain 7 (white) or 8 (black).")
