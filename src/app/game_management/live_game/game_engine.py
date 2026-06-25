@@ -114,6 +114,10 @@ class GameEngine:
 
         return self.game
 
+    # + createGamePersistObject(): Object // beinhaltet auch  numberOfColors, remainingTimeMillis ;
+    # Params entfernt da schon Attribute (self.game, self.clock. self.gameConfig)
+    def create_game_persist_object(self) -> dict: ...
+
     # braucht anderen name: namenkonflikt mit gamemanager (bedeutet dort mit speichern, hier nicht)
     def interrupt_game(self) -> None: ...
 
