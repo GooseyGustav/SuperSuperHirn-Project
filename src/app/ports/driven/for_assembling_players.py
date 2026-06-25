@@ -20,7 +20,16 @@ class ForAssemblingPlayers(ABC):
         the current `config` selection into the round's two player adapters.
 
         Args:
-            config: the current game configuration as a dictionary.
+            config: the current game config as a dict. Shape:
+                {
+                    "gamemode":            str,
+                    "user_role":           str,
+                    "network_enabled":     bool,
+                    "countdown_millis":    int,
+                    "delay_millis":        int,
+                    "number_of_positions": int,   # fixed constant, app-injected (5) (board size/code length)
+                    "number_of_colors":    int,   # fixed constant, app-injected (8)
+                }
 
         Returns:
             this round's two player adapters.

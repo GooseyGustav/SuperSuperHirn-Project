@@ -22,18 +22,17 @@ class ForPersistingGame(ABC):
             describes an interrupted game for future resuming. Shape:
 
                 {
-                    "gamemode":          str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
-                    "gamestate":         str,   # NEW | RUNNING | INTERRUPTED | WON
-                                             #   | LOST_TIMEOUT | LOST_ATTEMPTS
-                    "code_length":       int,   # 1..9 (default 5)
-                    "number_of_colors":  int,   # 1..8 (default 8); bounds the pin range
-                    "max_attempts":      int,   # fixed constant (10); snapshot only
-                    "secret_code":       list[int],   # len == codeLength,
+                    "gamemode":            str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+                    "gamestate":           str,   # NEW | RUNNING | INTERRUPTED | WON
+                                                  #   | LOST_TIMEOUT | LOST_ATTEMPTS
+                    "number_of_positions": int,   # fixed constant (5), app-injected; snapshot only
+                    "number_of_colors":    int,   # fixed constant (8), app-injected; snapshot only
+                    "max_attempts":        int,   # fixed constant (10), app-injected; snapshot only
+                    "secret_code":         list[int],  # len == codeLength,
                                                       #   each pin 1..numberOfColors
-                    "attempt_list": [                 # 0..maxAttempts rows
+                    "attempt_list": [                 # 0..MAX_ATTEMPTS rows
                         {
-                            "guess": list[int],    # len == codeLength,
-                                                   #   each pin 1..numberOfColors
+                            "guess": list[int],    # len == number_of_positions (fixed constant)
                             "feedback": {
                                 "black_pins": int,  # 0..codeLength
                                 "white_pins": int,  # 0..codeLength,
