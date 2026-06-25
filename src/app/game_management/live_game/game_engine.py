@@ -61,6 +61,7 @@ class GameEngine:
     def __init__(self, game_config: Config) -> None:
         self.game_config = game_config
         self.shutdown_requested = False
+        self.game: Game | None = None
 
     def run(self, codemaker, codebreaker) -> Game:
         """Execute the core gameplay loop.
