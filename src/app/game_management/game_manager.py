@@ -74,8 +74,20 @@ from app.ports.driving.for_game_administration import ForGameAdministration
 
 
 class GameManager(ForGameAdministration, ForConfiguringGame):
-    """The GameManager's implementation of the `ForGameAdministration` and
-    `ForConfiguringGame` Ports. Shape of the configuration dict:
+    """The GameManager is responsible for orchestrating the lifecycle of the game.
+    It receives user input (it implements of the `ForGameAdministration` and
+    `ForConfiguringGame` Ports) and controls the game flow.
+    It saves and loads the configuration to and from the `ForPersistingConfig` port,
+    asks for the players to be assembled through the `ForAssemblingPLayers` Port,
+    and delegates the actual game logic to the `GameEngine`.
+    It also handles the persistence of the current game state through the
+    `ForPersistingGame` port and can load an interrupted game from that port.
+
+     The GameManager is instantiated by the `SupersuperhirnApp` which passes it the ports
+     to persist the configuration and game data, and the port to assemble the players.
+     It creates its own `ConfigManager` and `GameEngine` to delegate tasks to them.
+
+     Shape of the configuration dict that the user adapter passes to the GameManager:
         {
              "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
              "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
@@ -84,12 +96,6 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
              "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
          }
     """
-
-    # ** Attributes: ** `configManager: ConfigManager
-    # `, `gameEngine: GameEngine
-    # `, `persistConfigPort:
-
-    # ForPersistingConfig`, `assemblingPlayersPort: ForAssemblingPlayers`, `persistGamePort: ForPersistingGame`
 
     def __init__(
         self,
@@ -116,20 +122,45 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         Returns: None
         """
-        config_dict = self.load_config()
+
+        self._configure_and_run()
+        self._persist_current_game()
+
+    def resume_interrupted(self) -> None:
+        """Resumes the interrupted game (loads the saved game and continues the game)."""
+
+        game_data = self._persist_game_port.load_game()
+        self._configure_and_run(game_data)
+        self._persist_current_game()
+
+    def _configure_and_run(self, game_data: dict | None = None) -> None:
+        """Shared flow for start game/resume interrupted to set up and run a
+        game round.
+
+        When game data is given with resume_interrupted(), the saved game mode
+        overwrites the loaded configuration and the GameEngine is created via
+        Engine.resume() before Engine.run(). Engine.run() continues the
+        existing game instead of the game creating a new one.
+        """
+        config_dict = self.load_config()  # load from save config json
+        if game_data is not None:
+            config_dict = {**config_dict, "gamemode": game_data["gamemode"]}  # overwrite gamemode
+
         config_manager = ConfigManager(config_dict)
-        game_config = config_manager.create_config_obj()
+        game_config = config_manager.create_config_obj()  # type Config
         self._config_manager = config_manager
-        players_config = {
+
+        self._game_engine = GameEngine(game_config)
+        if game_data is not None:
+            self._game_engine.resume(game_data)
+
+        players_config_for_port = {
             **config_dict,
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
         }
-        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config)
-        self._game_engine = GameEngine(game_config)
+        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
         self._game_engine.run(codemaker, codebreaker)
-        game_data = self._game_engine.create_game_persist_object()
-        self._persist_game_port.save_game(game_data)
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
@@ -138,28 +169,13 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._persist_game_port.delete_game()
         self.start_game()
 
-    def resume_interrupted(self) -> None:
-        """Resumes the interrupted game (loads the saved game and continues the game)."""
-        game_data = self._persist_game_port.load_game()
-        config_dict = {**self.load_config(), "gamemode": game_data["gamemode"]}
-        config_manager = ConfigManager(config_dict)
-        game_config = config_manager.create_config_obj()
-        self._config_manager = config_manager
-        self._game_engine = GameEngine(game_config)
-        self._game_engine.resume(game_data)  # still to be written
-        players_config = {
-            **config_dict,
-            "number_of_positions": game_config.number_of_positions,
-            "number_of_colors": game_config.number_of_colors,
-        }
-        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config)
-        self._game_engine.run(codemaker, codebreaker)
-
-    # renamed from interrupt_game(self) because of naming conflict with
-    # GameEngine.interrupt_game() with different effect (GamEngine does not save).
     def interrupt_game(self) -> None:
         """Interrupts the game (saves the game for a later time and stops it)."""
         self._game_engine.interrupt_game()
+        self._persist_current_game()
+
+    def _persist_current_game(self) -> None:
+        """Build the dict to persist the current game and save it."""
         game_data = self._game_engine.create_game_persist_object()
         self._persist_game_port.save_game(game_data)
 
@@ -179,7 +195,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """Exits the application (closes the entire program), saving the
         current game beforehand."""
         if self._game_engine is not None:
-            self._game_engine.interrupt_game()
+            self.interrupt_game()
         sys.exit()
 
     # ForConfiguringGame methods
