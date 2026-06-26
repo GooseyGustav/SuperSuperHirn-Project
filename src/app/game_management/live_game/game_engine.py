@@ -150,7 +150,13 @@ class GameEngine:
     def create_game_persist_object(self) -> dict:
         """Save a snapshot of the live game into the Persist dict.
         Outputs the shape defined by ForPersistingGame.save_game().
-        `matchup` is left empty here and filled by GameManager.
+
+        The `matchup` sub-dict carries the config selection in effect at
+        GameManager.interrupt_game() (role, network bool, gamemode, timing).
+        On GameManager.resume_interrupted() the GameManager merges that config
+        back over the live config so that the Matchmaker can rewire the same
+        adapters, even if the user changed the config between interrupt and resume.
+        The ForPersistingGame round-trips the `matchup` sub-dict as is.
         """
         game = self.game
         secret = [pin.get_color().value for pin in game.secret_code.get_code()] if game.secret_code is not None else []
@@ -178,7 +184,13 @@ class GameEngine:
             "secret_code": secret,
             "attempt_list": attempt_rows,
             "remaining_time_millis": 0,  # TODO: from Clock once implemented
-            "matchup": {},  # GameManager fills this in
+            "matchup": {
+                "gamemode": self.game_config.gamemode.value,
+                "user_role": self.game_config.user_role.value,
+                "network_enabled": self.game_config.network_enabled,
+                "countdown_millis": self.game_config.countdown_millis,
+                "delay_millis": self.game_config.delay_millis,
+            },
         }
 
     # TODO: naming conflict with GameEngine.interrupt_game() with different effect
@@ -189,7 +201,6 @@ class GameEngine:
 
     def resume(self, game_data: dict) -> None:
         """Rebuild the Game from a saved snapshot so run() can continue it.
-
         Built in gamestate INTERRUPTED; run() will flip the switch to RUNNING.
 
         Args:

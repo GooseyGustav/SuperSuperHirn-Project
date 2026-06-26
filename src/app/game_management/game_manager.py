@@ -97,6 +97,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
          }
     """
 
+    # TODO: which players (adapters) should be assembled must be loaded from the persisted game data
+    #  and sent to the ForAssemblingPlayers port
+
     def __init__(
         self,
         persist_config_port: ForPersistingConfig,
@@ -137,14 +140,16 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """Shared flow for start game/resume interrupted to set up and run a
         game round.
 
-        When game data is given with resume_interrupted(), the saved game mode
-        overwrites the loaded configuration and the GameEngine is created via
-        Engine.resume() before Engine.run(). Engine.run() continues the
-        existing game instead of the game creating a new one.
+        When game data is given with resume_interrupted(), the saved game's config (game_data["matchup"])
+        overwrites the loaded configuration so the Matchmaker can rewire the same adapters,
+        and the GameEngine is created via Engine.resume() before Engine.run().
+        Engine.run() continues the existing, saved game instead of creating a new game.
         """
-        config_dict = self.load_config()  # load from save config json
-        if game_data is not None:
-            config_dict = {**config_dict, "gamemode": game_data["gamemode"]}  # overwrite gamemode
+        config_dict = self.load_config()  # load from save config JSON
+        if game_data is not None:  # Resumed interrupted game
+            # game_data["matchup"] will overwrite any config selection entries that differ from
+            # the saved game's config for this round (doesn't re-save config to ForPersistingConfig Port).
+            config_dict = {**config_dict, **game_data.get("matchup", {})}  # overwrite game config
 
         config_manager = ConfigManager(config_dict)
         game_config = config_manager.create_config_obj()  # type Config
