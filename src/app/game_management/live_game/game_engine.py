@@ -58,7 +58,7 @@ from app.game_model.player_attempts.guess import Guess
 
 
 class GameEngine:
-    """Docstring for GameEngine. # TODO"""
+    """The GameEngine runs one round's loop. It pulls moves from the player ports; owns the live `Game`, `Clock`"""
 
     # deleted file mentioned in docstring GameSessionManager per modification of
     # Class Reference and Diagram, following discussion with Marlon that it was
@@ -88,6 +88,7 @@ class GameEngine:
         # create game if not already created through resume() (as called by GameManager)
         if self.game is None:
             self.game = Game(game_mode=self.game_config.gamemode, code_length=CodeConstants.NUMBER_OF_PINS)
+
         # differentiate between a new game and a resumed game
         if self.game.secret_code is None:
             secret_code_as_list = codemaker.get_secret_code()
@@ -223,7 +224,7 @@ class GameEngine:
         return self.game
 
     # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError
+    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
     @staticmethod
     def _assert_code_legal(code: list[int]) -> None:
         """Validate the raw code list from a port that represents a secret code or guess."""
@@ -234,7 +235,7 @@ class GameEngine:
             raise ValueError("Code contains invalid color integers.")
 
     # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError
+    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
     @staticmethod
     def _assert_feedback_legal(feedback: list[int]) -> None:
         """Validate the feedback as peg list from the codemaker port
@@ -246,9 +247,3 @@ class GameEngine:
         # 7 = white peg, 8 = black peg
         if not all(peg in (7, 8) for peg in feedback):
             raise ValueError("Feedback must only contain 7 (white peg) or 8 (black peg).")
-
-        # str check? ("FINAL", "PROVISIONAL")
-
-        # VERSION FOR COUNTS + STR
-        # if len(feedback) == 3 and feedback[2] not in ("FINAL", "PROVISIONAL"):
-        #     raise ValueError("Feedback status must be FINAL or PROVISIONAL.")
