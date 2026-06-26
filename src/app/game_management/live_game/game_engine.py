@@ -107,14 +107,14 @@ class GameEngine:
             self._assert_code_legal(guess_as_list)
             self.game.set_guess(guess_as_list)
 
-            feedback_list = codemaker.get_feedback(secret_code_as_list, guess_as_list)  # simple int list
-            self._assert_feedback_legal(feedback_list)
-            nr_of_black_pins, nr_of_white_pins = feedback_list[0], feedback_list[1]
+            feedback_pegs = codemaker.get_feedback(secret_code_as_list, guess_as_list)  # int list
+            self._assert_feedback_legal(feedback_pegs)
+            nr_of_black_pins = feedback_pegs.count(8)
+            nr_of_white_pins = feedback_pegs.count(7)
             self.game.set_feedback([nr_of_black_pins, nr_of_white_pins])
 
-            # Win condition: All guessed pins are completely correct (as black pegs as code pins)
-            # if feedback_list.count(8) == CodeConstants.NUMBER_OF_PINS:
-            # version to conform with Port requirements:
+            # Win condition: All guessed pegs are completely correct
+            # VERSION FOR INT LIST
             if nr_of_black_pins == CodeConstants.NUMBER_OF_PINS:
                 self.game.game_state = Gamestate.WON
                 break
@@ -130,24 +130,20 @@ class GameEngine:
 
         return self.game
 
-    def _board_for_codebreaker(self) -> list[tuple[list[int], list[int | str]]]:
-        """Convert the live attempt history (Attempt type) into the list of tuples that
-        the ForGettingCodebreakerMove port declares (each tuple has a guess and the
-        feedback to it). feedback carries [nr-of-black, nr-of-white, status] (status
-        because BLIND_TRIAL needs the provisional/final flag) with types [int, int, str].
+    def _board_for_codebreaker(self) -> list[tuple[list[int], list[int], str]]:
+        """Convert the live attempt history into the (guess, feedback, status) rows that
+        the ForGettingCodebreakerMove port declares.
+            guess: list[int]  # pegs with colors guessed
+            feedback: list[int]  # pegs with feedback colors (7 = white, 8 = black); order not relevant
+            status:  str  # status of the attempt ("FINAL", "PROVISIONAL", set by model)
 
-        TODO: feedback's mixed list could be a dict for clarity (like in persist game data dict shape)
         """
         board = []
-
         for attempt in self.game.attempt_list:
-            guess_as_int_list = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
+            guess_pegs = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
             fb = attempt.get_feedback()
-
-            # instead of list: could be a dict for clarity (like in persist game data dict shape)
-            feedback_for_codebreaker = [fb.black_pins, fb.white_pins, fb.get_status().value]
-            board.append((guess_as_int_list, feedback_for_codebreaker))
-
+            feedback_pegs = [8] * fb.black_pins + [7] * fb.white_pins
+            board.append((guess_pegs, feedback_pegs, fb.get_status().value))
         return board
 
     def create_game_persist_object(self) -> dict:
@@ -187,7 +183,7 @@ class GameEngine:
     # TODO: naming conflict with GameEngine.interrupt_game() with different effect
     #  (GamEngine does not save, GameManager saves). --> rename here (not in GameManager!)
     def interrupt_game(self) -> None:
-        """Signal the run loop to stop; run() will marK the game as INTERRUPTED."""
+        """Signal the run loop to stop; run() will mark the game as INTERRUPTED."""
         self.shutdown_requested = True
 
     def resume(self, game_data: dict) -> None:
@@ -240,30 +236,19 @@ class GameEngine:
     # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
     # TODO: Brauchen evtl noch KeyError
     @staticmethod
-    def _assert_feedback_legal(feedback: list[int | str]) -> None:
-        """Validate the raw feedback list from a port."""
+    def _assert_feedback_legal(feedback: list[int]) -> None:
+        """Validate the feedback as peg list from the codemaker port
+        (7 = white, 8 = black)."""
 
-        # Corrected to fit Port requirements: feedback is not an int list
-        # like [8,8,7] but [x,y] or [x,y,status] (x: nr of black pins,
-        # y: number of white pins, optional status in TIME_TRIAL gamemode)
-        # TODO: check Adapters fulfill Port requirements
-        if len(feedback) not in (2, 3):
-            raise ValueError("Feedback must be [nr-of-black, nr-of-white] or [nr-of-black, nr-of-white, status].")
+        if len(feedback) > CodeConstants.NUMBER_OF_PINS:
+            raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
 
-        black, white = feedback[:2]
-        if not isinstance(black, int) or not isinstance(white, int):
-            raise ValueError("Feedback pin counts must be integers.")
-        if black < 0 or white < 0 or black + white > CodeConstants.NUMBER_OF_PINS:
-            raise ValueError("Feedback pin counts must be non-negative and " "sum to <= code_length.")
+        # 7 = white peg, 8 = black peg
+        if not all(peg in (7, 8) for peg in feedback):
+            raise ValueError("Feedback must only contain 7 (white peg) or 8 (black peg).")
 
-        if len(feedback) == 3 and feedback[2] not in ("FINAL", "PROVISIONAL"):
-            raise ValueError("Feedback status must be FINAL or PROVISIONAL.")
+        # str check? ("FINAL", "PROVISIONAL")
 
-        # Previous version expecting feedback to be code with color ints
-        # like [7,7,7]:
-        # if len(feedback) > CodeConstants.NUMBER_OF_PINS:
-        #     raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
-        #
-        # # 7 = white peg, 8 = black peg
-        # if not all(c in (7, 8) for c in feedback):
-        #     raise ValueError("Feedback must only contain 7 (white) or 8 (black).")
+        # VERSION FOR COUNTS + STR
+        # if len(feedback) == 3 and feedback[2] not in ("FINAL", "PROVISIONAL"):
+        #     raise ValueError("Feedback status must be FINAL or PROVISIONAL.")

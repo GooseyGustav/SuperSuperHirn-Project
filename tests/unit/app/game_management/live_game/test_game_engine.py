@@ -62,9 +62,7 @@ def test_game_engine_assert_code_legal_invalid_color(engine):
 
 def test_game_engine_assert_feedback_legal_valid_feedback(engine):
     """A valid list of feedback integers raises no exception."""
-    # valid_feedback_list = [8, 8, 7]
-    # corrected list format to match port requirements
-    valid_feedback_list = [1, 2]
+    valid_feedback_list = [8, 8, 7]  # 2 black, 1 white
     try:
         engine._assert_feedback_legal(valid_feedback_list)
     except Exception as e:
@@ -73,19 +71,16 @@ def test_game_engine_assert_feedback_legal_valid_feedback(engine):
 
 def test_game_engine_assert_feedback_legal_count_exceeds_code_length(engine):
     """A feedback list exceeding the pin count raises a ValueError."""
-    # invalid_feedback_list = [8, 8, 8, 8, 8, 8]  # 6 pins (max 5)
-    # corrected list format to match port requirements
-    invalid_feedback_list = [3, 3]  # black+white: 3+3=6 > 5
-    with pytest.raises(ValueError, match="sum"):
-        engine._assert_feedback_legal(invalid_feedback_list)
+    too_many_pegs = [8, 8, 8, 8, 8, 8]  # 6 pegs > 5
+    with pytest.raises(ValueError, match="length"):
+        engine._assert_feedback_legal(too_many_pegs)
 
 
-# no color test in version with feedback list formatted per port requirements
-# def test_game_engine_assert_feedback_legal_invalid_peg(engine):
-#     """A feedback list containing numbers other than 7 or 8 raises a ValueError."""
-#     # invalid_feedback_list = [8, 1, 7]  # 1 is not a valid peg
-#     with pytest.raises(ValueError, match="7 \\(white\\) or 8 \\(black\\)"):
-#         engine._assert_feedback_legal(invalid_feedback_list)
+def test_game_engine_assert_feedback_legal_invalid_peg(engine):
+    """A feedback list containing numbers other than 7 or 8 raises a ValueError."""
+    bad_peg = [8, 1, 7]  # 1 is not a valid peg
+    with pytest.raises(ValueError, match="7 \\(white peg\\) or 8 \\(black peg\\)"):
+        engine._assert_feedback_legal(bad_peg)
 
 
 # ---------- GameEngine: Core Loop Tests ----------
@@ -99,12 +94,11 @@ def test_game_engine_run_player_wins_first_round(engine):
 
     secret_code_list = [1, 2, 3, 4, 5]
     guess_list = [1, 2, 3, 4, 5]
-    # winning_feedback_list = [8, 8, 8, 8, 8]
-    winning_feedback_list = [5, 0]
+    winning_feedback_pegs = [8, 8, 8, 8, 8]
 
     codemaker_mock.get_secret_code.return_value = secret_code_list
     codebreaker_mock.get_guess.return_value = guess_list
-    codemaker_mock.get_feedback.return_value = winning_feedback_list
+    codemaker_mock.get_feedback.return_value = winning_feedback_pegs
 
     # Act
     game = engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
