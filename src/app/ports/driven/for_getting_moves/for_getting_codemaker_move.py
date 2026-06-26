@@ -27,7 +27,8 @@ class ForGettingCodemakerMove(ABC):
         """Returns the Codemaker's secret code to the app at the beginning of the game.
 
         Returns:
-            the Codemaker's secret code as a list of ints.
+            the Codemaker's secret code as a list of ints (length constraints:
+            => 1 and =< 9).
         """
 
     @abstractmethod
@@ -42,9 +43,7 @@ class ForGettingCodemakerMove(ABC):
                     (length constraints: guess.len() = secret.len()).
 
         Returns:
-            the feedback as a peg list of color ints (7 = white, 8 = black),
-            e.g. [8, 8, 7] for a guess with 2 black pegs and 1 white peg.
-            Length: 0..number_of_positions.
-            peg position in list is not relevant.
-            (Provisional/final status is not returned here, as that is set by the model.)
+            the feedback pins as a list [number-of-BLACK-pins, number-of-WHITE-pins]
+            or if game_mode = BLIND_TRIAL:
+            [number-of-BLACK-pins, number-of-WHITE-pins, guess-status]
         """
