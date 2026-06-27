@@ -170,7 +170,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         try:
             self._game_engine.run(codemaker, codebreaker)
         except (ValueError, TypeError):  # generic except for now instead of custom to save time
-            # doesn't include reaume/load of a corrupt json
+            # doesn't include resume/load of a corrupt json
             logging.warning("Illegal move has reached the app; aborting round without saving.", exc_info=True)
             self._game_engine = None
             self._config_manager = None
