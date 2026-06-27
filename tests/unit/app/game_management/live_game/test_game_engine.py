@@ -63,7 +63,25 @@ def test_game_engine_assert_code_legal_rejects_non_list(engine):
         engine._assert_code_legal("12345")  # str len is 5, but not a list
 
 
-# ---------- GameEngine: Feedback Validation Tests ----------
+def test_game_engine_assert_code_rejects_non_int_element_double(engine):
+    """A non-int element raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal([1, 2, 3, 4, 5.5])
+
+
+def test_game_engine_assert_code_rejects_non_int_element_char(engine):
+    """A non-int element raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal(["1, 2, 3, 4, 5"])
+
+
+def test_game_engine_assert_code_rejects_non_int_element_bool(engine):
+    """A non-int element (bool, which could be recognized as int 1) raises a
+    ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal([True, True, True, True, True])
+
+        # ---------- GameEngine: Feedback Validation Tests ----------
 
 
 def test_game_engine_assert_feedback_legal_valid_feedback(engine):
@@ -95,6 +113,25 @@ def test_game_engine_assert_feedback_legal_rejects_non_list(engine):
     """
     with pytest.raises(ValueError, match="list"):
         engine._assert_feedback_legal({8: 1})
+
+
+def test_game_engine_assert_feedback_rejects_non_int_element_double(engine):
+    """A non-int element (double) raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal([7.5])
+
+
+def test_game_engine_assert_feedback_rejects_non_int_element_str(engine):
+    """A non-int element (str) raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal(["white"])
+
+
+def test_game_engine_assert_feedback_rejects_non_int_element_bool(engine):
+    """A non-int element (bool, which could be recognized as int 1) raises a
+    ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal([True, True, True, True, True])
 
 
 # ---------- GameEngine: Core Loop Tests ----------
