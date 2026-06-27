@@ -46,6 +46,7 @@
 
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
+from app.game_management.live_game.clock import Clock
 from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
@@ -56,6 +57,7 @@ from app.game_model.player_attempts.attempt import Attempt
 from app.game_model.player_attempts.feedback import Feedback
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 from app.game_model.player_attempts.guess import Guess
+from app.ports.driven.for_getting_moves.errors import TimeoutInterrupt
 
 
 class GameEngine:
@@ -70,6 +72,12 @@ class GameEngine:
         self.game_config = game_config
         self.shutdown_requested = False
         self.game: Game | None = None
+        # Clock is only created for TIME_TRIAL; None in all other modes.
+        self.clock: Clock | None = (
+            Clock(game_config.countdown_millis)
+            if game_config.gamemode == Gamemode.TIME_TRIAL
+            else None
+        )
 
     def run(self, codemaker, codebreaker) -> Game:
         """Execute the core gameplay loop.
@@ -102,10 +110,27 @@ class GameEngine:
             self._assert_code_legal(secret_code_as_list)
 
         self.game.game_state = Gamestate.RUNNING
+        is_time_trial = self.game_config.gamemode == Gamemode.TIME_TRIAL
 
         while not self.shutdown_requested:
-            # board = attempt history translated to the primitive list of tuples the port wants
-            guess_as_list = codebreaker.get_guess(self._board_for_codebreaker())
+            # Per-move clock: reset + start immediately before get_guess.
+            # get_feedback is intentionally outside the timed window.
+            if is_time_trial:
+                self.clock.reset()
+                self.clock.start()
+
+            try:
+                guess_as_list = codebreaker.get_guess(self._board_for_codebreaker())
+            except TimeoutInterrupt:
+                # Interactive cutoff: raised by the GUI adapter when the player runs out of time.
+                self.game.game_state = Gamestate.LOST_TIMEOUT
+                break
+
+            # Post-hoc cutoff: for CPU codebreakers that finish after the deadline.
+            if is_time_trial and self.clock.is_expired():
+                self.game.game_state = Gamestate.LOST_TIMEOUT
+                break
+
             self._assert_code_legal(guess_as_list)
             self.game.set_guess(guess_as_list)
 
@@ -191,7 +216,7 @@ class GameEngine:
             "max_attempts": Game.MAX_ATTEMPTS,
             "secret_code": secret,
             "attempt_list": attempt_rows,
-            "remaining_time_millis": 0,  # TODO: from Clock once implemented
+            "remaining_time_millis": self.game_config.countdown_millis if self.game_config.gamemode == Gamemode.TIME_TRIAL else 0,
             "matchup": {
                 "gamemode": self.game_config.gamemode.value,
                 "user_role": self.game_config.user_role.value,
@@ -241,7 +266,10 @@ class GameEngine:
             feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
             self.game.attempt_list.append(Attempt(guess_object, feedback_object))
 
-    def start_clock(self, time_millis: int) -> bool: ...
+        # Arm a fresh per-move clock; the saved remaining_time_millis is ignored
+        # because per-move semantics discard any partial time on interrupt.
+        if self.game_config.gamemode == Gamemode.TIME_TRIAL:
+            self.clock = Clock(self.game_config.countdown_millis)
 
     def get_game_obj(self) -> Game | None:
         """Returns the current game object."""
