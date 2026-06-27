@@ -182,12 +182,70 @@ def test_start_game_runs_and_persists(
     persist_game_port_mock,
     valid_config_dict,
 ):
+
+    # Arrange
     persist_config_port_mock.load_config_dict.return_value = valid_config_dict
     codemaker, codebreaker = MagicMock(), MagicMock()
     assembling_players_port_mock.assemble_players.return_value = (codemaker, codebreaker)
     engine = mock_engine_class.return_value
     engine.create_game_persist_object.return_value = {"gamestate": "WON"}
+
+    # Act
     game_manager.start_game()
+
+    # Assert
     engine.run.assert_called_once_with(codemaker, codebreaker)
     engine.create_game_persist_object.assert_called_once()
     persist_game_port_mock.save_game.assert_called_once_with({"gamestate": "WON"})
+
+
+@pytest.mark.parametrize("run_error", [ValueError("illegal move"), TypeError("not a list")])
+@patch("app.game_management.game_manager.GameEngine")
+def test_start_game_illegal_move_aborts_without_saving(
+    mock_engine_class,
+    run_error,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    engine = mock_engine_class.return_value
+    engine.run.side_effect = run_error  # illegal move flagged by engine
+
+    # Act
+    game_manager.start_game()  # should not raise error (abort handled internally)
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+    assert game_manager._config_manager is None
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_resume_interrupted_illegal_move_aborts_without_saving(
+    mock_engine_class,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    persist_game_port_mock.load_game.return_value = {"matchup": {}}
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    engine = mock_engine_class.return_value
+    engine.run.side_effect = ValueError("illegal move")
+
+    # Act
+    game_manager.resume_interrupted()
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None

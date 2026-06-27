@@ -79,6 +79,31 @@ def test_game_engine_assert_code_legal_invalid_color(engine):
         engine._assert_code_legal(invalid_code_list)
 
 
+def test_game_engine_assert_code_legal_rejects_non_list(engine):
+    """A non-list code raises a ValueError thanks to the isinstance(list) guard."""
+    with pytest.raises(ValueError, match="list"):
+        engine._assert_code_legal("12345")  # str len is 5, but not a list
+
+
+def test_game_engine_assert_code_rejects_non_int_element_double(engine):
+    """A non-int element raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal([1, 2, 3, 4, 5.5])
+
+
+def test_game_engine_assert_code_rejects_non_int_element_char(engine):
+    """A non-int element raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal(["1, 2, 3, 4, 5"])
+
+
+def test_game_engine_assert_code_rejects_non_int_element_bool(engine):
+    """A non-int element (bool, which could be recognized as int 1) raises a
+    ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_code_legal([True, True, True, True, True])
+
+
 @pytest.mark.parametrize("invalid_color", [0, CodeConstants.NUMBER_OF_COLORS.value + 1])
 def test_game_engine_assert_code_legal_invalid_color_values(engine, invalid_color):
     invalid_code_list = [1, 2, invalid_color, 4, 5]
@@ -112,22 +137,34 @@ def test_game_engine_assert_feedback_legal_invalid_peg(engine):
         engine._assert_feedback_legal(bad_peg)
 
 
-def test_game_engine_assert_feedback_legal_empty_list(engine):
-    """An empty feedback list raises no exception."""
-    try:
-        engine._assert_feedback_legal([])
-    except Exception as e:
-        pytest.fail(f"Unexpected exception for empty feedback: {e}")
+def test_game_engine_assert_feedback_legal_rejects_non_list(engine):
+    """A non-list feedback raises a ValueError thanks to the isinstance(list) guard
+    (no crashing later at .count()).
+    """
+    with pytest.raises(ValueError, match="list"):
+        engine._assert_feedback_legal({8: 1})
 
 
-@pytest.mark.parametrize("invalid_peg", [6, 9])
-def test_game_engine_assert_feedback_legal_invalid_color_values(engine, invalid_peg):
-    invalid_feedback_list = [8, invalid_peg, 7]
-    with pytest.raises(ValueError, match="7 \\(white peg\\) or 8 \\(black peg\\)"):
-        engine._assert_feedback_legal(invalid_feedback_list)
+def test_game_engine_assert_feedback_rejects_non_int_element_double(engine):
+    """A non-int element (double) raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal([7.5])
 
 
-# ---------- GameEngine: run Tests ----------
+def test_game_engine_assert_feedback_rejects_non_int_element_str(engine):
+    """A non-int element (str) raises a ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal(["white"])
+
+
+def test_game_engine_assert_feedback_rejects_non_int_element_bool(engine):
+    """A non-int element (bool, which could be recognized as int 1) raises a
+    ValueError thanks to the isinstance(int) guard."""
+    with pytest.raises(ValueError, match="integers"):
+        engine._assert_feedback_legal([True, True, True, True, True])
+
+
+# ---------- GameEngine: Core Loop Tests ----------
 
 
 def test_game_engine_run_player_wins_first_round(engine):
@@ -313,6 +350,40 @@ def test_run_lost_to_attempts_converts_provisional_feedback_to_final_feedback(de
     assert game.game_state == Gamestate.LOST_ATTEMPTS
     assert len(game.attempt_list) == Game.MAX_ATTEMPTS
     assert all(attempt.get_feedback().get_status() == FeedbackStatus.FINAL for attempt in game.attempt_list)
+
+
+def test_run_empty_feedback_from_port_does_not_abort_game(engine):
+    """The core accepts an empty feedback list as meaning [0, 0], a legal feedback
+    with 0 black pins and 0 white pins, so the game continues (doesn't abort).
+    Feedback [8,8,8,8,8] added in second call to close the run() loop."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3, 4, 5]
+    codebreaker_mock.get_guess.return_value = [1, 2, 3, 4, 5]
+    codemaker_mock.get_feedback.side_effect = [[], [8, 8, 8, 8, 8]]  # empty feedback (no pins), then win to end loop
+
+    game = engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+    assert codemaker_mock.get_feedback.call_count == 2
+    assert len(game.attempt_list) == 2
+    assert game.game_state == Gamestate.WON
+
+
+def test_run_records_empty_feedback_from_port_as_zero_pins(engine):
+    """The core records an empty feedback list and translates it as [0, 0],
+    a legal feedback with 0 black pins and 0 white pins.
+    (That translation happens in GameEngine.run() with .count() of black and
+    white pins before passing those counts to the Game.)
+    Feedback [8,8,8,8,8] added in second call to close the run() loop."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3, 4, 5]
+    codebreaker_mock.get_guess.return_value = [1, 2, 3, 4, 5]
+    codemaker_mock.get_feedback.side_effect = [[], [8, 8, 8, 8, 8]]  # empty feedback (no pins), then win to end loop
+
+    game = engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+    first_feedback = game.attempt_list[0].get_feedback()
+    assert first_feedback.black_pins == 0
+    assert first_feedback.white_pins == 0
 
 
 # ---------- GameEngine: interrupt_game Tests ----------
