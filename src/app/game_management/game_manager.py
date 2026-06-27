@@ -60,6 +60,7 @@
 # - gibt dieses Object als dict zum Port
 
 
+import logging
 import sys
 
 from app.game_management.game_config_management.config_manager import ConfigManager
@@ -125,16 +126,16 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         Returns: None
         """
-
         self._configure_and_run()
-        self._persist_current_game()
 
     def resume_interrupted(self) -> None:
         """Resumes the interrupted game (loads the saved game and continues the game)."""
 
+        # TODO: handle corrupt-persist: load_game() + GameEngine.resume() (called inside _configure_and_run)
+        #  can raise ValueError AND KeyError on a corrupt save. Not caught here yet.
+        #  This is the eventual catch spot (kept separate from the run() illegal-move catch).
         game_data = self._persist_game_port.load_game()
         self._configure_and_run(game_data)
-        self._persist_current_game()
 
     def _configure_and_run(self, game_data: dict | None = None) -> None:
         """Shared flow for start game/resume interrupted to set up and run a
@@ -165,7 +166,17 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             "number_of_colors": game_config.number_of_colors,
         }
         codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
-        self._game_engine.run(codemaker, codebreaker)
+
+        try:
+            self._game_engine.run(codemaker, codebreaker)
+        except (ValueError, TypeError):  # generic except for now instead of custom to save time
+            # doesn't include resume/load of a corrupt json
+            logging.warning("Illegal move has reached the app; aborting round without saving.", exc_info=True)
+            self._game_engine = None
+            self._config_manager = None
+            return
+
+        self._persist_current_game()
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
@@ -176,6 +187,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
     def interrupt_game(self) -> None:
         """Interrupts the game (saves the game for a later time and stops it)."""
+        if self._game_engine is None:  # no active game to interrupt (like if abort after illegal move passed)
+            return
         self._game_engine.interrupt_game()
         self._persist_current_game()
 
