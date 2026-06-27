@@ -141,3 +141,37 @@ def test_game_engine_raises_on_illegal_guess(engine):
     codebreaker_mock.get_guess.return_value = [1, 2, 3]  # too short
     with pytest.raises(ValueError):
         engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+
+def test_run_empty_feedback_from_port_does_not_abort_game(engine):
+    """The core accepts an empty feedback list as meaning [0, 0], a legal feedback
+    with 0 black pins and 0 white pins, so the game continues (doesn't abort).
+    Feedback [8,8,8,8,8] added in second call to close the run() loop."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3, 4, 5]
+    codebreaker_mock.get_guess.return_value = [1, 2, 3, 4, 5]
+    codemaker_mock.get_feedback.side_effect = [[], [8, 8, 8, 8, 8]]  # empty feedback (no pins), then win to end loop
+
+    game = engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+    assert codemaker_mock.get_feedback.call_count == 2
+    assert len(game.attempt_list) == 2
+    assert game.game_state == Gamestate.WON
+
+
+def test_run_records_empty_feedback_from_port_as_zero_pins(engine):
+    """The core records an empty feedback list and translates it as [0, 0],
+    a legal feedback with 0 black pins and 0 white pins.
+    (That translation happens in GameEngine.run() with .count() of black and
+    white pins before passing those counts to the Game.)
+    Feedback [8,8,8,8,8] added in second call to close the run() loop."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3, 4, 5]
+    codebreaker_mock.get_guess.return_value = [1, 2, 3, 4, 5]
+    codemaker_mock.get_feedback.side_effect = [[], [8, 8, 8, 8, 8]]  # empty feedback (no pins), then win to end loop
+
+    game = engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+    first_feedback = game.attempt_list[0].get_feedback()
+    assert first_feedback.black_pins == 0
+    assert first_feedback.white_pins == 0
