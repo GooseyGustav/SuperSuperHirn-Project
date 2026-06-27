@@ -209,6 +209,11 @@ class GameEngine:
             (Shape defined by ForPersistingGame.save_game()/load_game()).
         """
 
+        # TODO : handle corrupt persisted data:
+        #  the game_data[...] / attempt_row[...] / fb[...] accesses can raise KeyError (missing keys),
+        #  and Color()/FeedbackStatus()/ _assert_code_legal can raise ValueError on a corrupt/malformed save.
+        #  These currently propagate UNHANDLED — corrupt-persist handling is a separate deferred decision.
+
         code_length = CodeConstants.NUMBER_OF_PINS
 
         self.game = Game(game_mode=self.game_config.gamemode, code_length=code_length, game_state=Gamestate.INTERRUPTED)
@@ -234,23 +239,28 @@ class GameEngine:
         """Returns the current game object."""
         return self.game
 
-    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
+    # On raise Error during run(): GameManager catches (ValueError, TypeError)
+    # and aborts the round without saving.
     @staticmethod
     def _assert_code_legal(code: list[int]) -> None:
         """Validate the raw code list from a port that represents a secret code or guess."""
+        if not isinstance(code, list):
+            raise ValueError("Code must be a list of integers.")
+
         if len(code) != CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
 
         if not all(1 <= c <= CodeConstants.NUMBER_OF_COLORS for c in code):
             raise ValueError("Code contains invalid color integers.")
 
-    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
+    # On raise Error during run(): GameManager catches (ValueError, TypeError)
+    # and aborts the round without saving.
     @staticmethod
     def _assert_feedback_legal(feedback: list[int]) -> None:
         """Validate the feedback as peg list from the codemaker port
         (7 = white, 8 = black)."""
+        if not isinstance(feedback, list):
+            raise ValueError("Feedback must be a list of integers.")
 
         if len(feedback) > CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
