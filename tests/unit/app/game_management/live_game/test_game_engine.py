@@ -57,6 +57,12 @@ def test_game_engine_assert_code_legal_invalid_color(engine):
         engine._assert_code_legal(invalid_code_list)
 
 
+def test_game_engine_assert_code_legal_rejects_non_list(engine):
+    """A non-list code raises a ValueError thanks to the isinstance(list) guard."""
+    with pytest.raises(ValueError, match="list"):
+        engine._assert_code_legal("12345")  # str len is 5, but not a list
+
+
 # ---------- GameEngine: Feedback Validation Tests ----------
 
 
@@ -81,6 +87,14 @@ def test_game_engine_assert_feedback_legal_invalid_peg(engine):
     bad_peg = [8, 1, 7]  # 1 is not a valid peg
     with pytest.raises(ValueError, match="7 \\(white peg\\) or 8 \\(black peg\\)"):
         engine._assert_feedback_legal(bad_peg)
+
+
+def test_game_engine_assert_feedback_legal_rejects_non_list(engine):
+    """A non-list feedback raises a ValueError thanks to the isinstance(list) guard
+    (no crashing later at .count()).
+    """
+    with pytest.raises(ValueError, match="list"):
+        engine._assert_feedback_legal({8: 1})
 
 
 # ---------- GameEngine: Core Loop Tests ----------
@@ -110,3 +124,20 @@ def test_game_engine_run_player_wins_first_round(engine):
 
     assert game is not None
     assert game.game_state == Gamestate.WON
+
+
+def test_game_engine_raises_on_illegal_secret_code(engine):
+    """A illegal secret code from the Codemaker propagates and stops run()."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3]  # too short
+    with pytest.raises(ValueError):
+        engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
+
+
+def test_game_engine_raises_on_illegal_guess(engine):
+    """A illegal guess from the Codebreaker propagates and stops run()."""
+    codemaker_mock, codebreaker_mock = MagicMock(), MagicMock()
+    codemaker_mock.get_secret_code.return_value = [1, 2, 3, 4, 5]
+    codebreaker_mock.get_guess.return_value = [1, 2, 3]  # too short
+    with pytest.raises(ValueError):
+        engine.run(codemaker=codemaker_mock, codebreaker=codebreaker_mock)
