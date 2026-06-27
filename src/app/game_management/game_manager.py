@@ -246,3 +246,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             value = config[key]
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{key} must be a non-negative integer")
+
+        # TIME_TRIAL requires a positive countdown; 0 would mean instant loss
+        if config["gamemode"] == Gamemode.TIME_TRIAL.value and config["countdown_millis"] == 0:
+            raise ValueError("countdown_millis must be > 0 for TIME_TRIAL")
