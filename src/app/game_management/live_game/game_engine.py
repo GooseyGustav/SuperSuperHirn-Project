@@ -50,6 +50,7 @@ from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
 from app.game_model.game import Game
+from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
 from app.game_model.player_attempts.attempt import Attempt
 from app.game_model.player_attempts.feedback import Feedback
@@ -118,11 +119,15 @@ class GameEngine:
             # VERSION FOR INT LIST
             if nr_of_black_pins == CodeConstants.NUMBER_OF_PINS:
                 self.game.game_state = Gamestate.WON
+                if self.game.game_mode == Gamemode.BLIND_TRIAL:
+                    self.game.convert_provision_to_final()
                 break
 
             # Loss condition: Maximum number of attempts reached
             if len(self.game.attempt_list) >= Game.MAX_ATTEMPTS:
                 self.game.game_state = Gamestate.LOST_ATTEMPTS
+                if self.game.game_mode == Gamemode.BLIND_TRIAL:
+                    self.game.convert_provision_to_final()
                 break
 
         # Defensive catch: Mark game as interrupted if loop exited via flag
@@ -143,7 +148,10 @@ class GameEngine:
         for attempt in self.game.attempt_list:
             guess_pegs = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
             fb = attempt.get_feedback()
-            feedback_pegs = [8] * fb.black_pins + [7] * fb.white_pins
+            if fb.get_status() == FeedbackStatus.PROVISIONAL:
+                feedback_pegs = [7] * (fb.black_pins + fb.white_pins)
+            else:
+                feedback_pegs = [8] * fb.black_pins + [7] * fb.white_pins
             board.append((guess_pegs, feedback_pegs, fb.get_status().value))
         return board
 
