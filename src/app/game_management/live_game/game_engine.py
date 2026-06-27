@@ -247,6 +247,9 @@ class GameEngine:
         if not isinstance(code, list):
             raise ValueError("Code must be a list of integers.")
 
+        if not all(isinstance(c, int) and not isinstance(c, bool) for c in code):
+            raise ValueError("Code must contain only integers.")
+
         if len(code) != CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
 
@@ -261,6 +264,9 @@ class GameEngine:
         (7 = white, 8 = black)."""
         if not isinstance(feedback, list):
             raise ValueError("Feedback must be a list of integers.")
+
+        if not all(isinstance(f, int) and not isinstance(f, bool) for f in feedback):
+            raise ValueError("Feedback must contain only integers.")
 
         if len(feedback) > CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")
