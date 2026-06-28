@@ -112,11 +112,11 @@ class Game:
 
         self._validate_feedback(feedback)
 
-        # set previuous attempts in attempt_list to FINAL
+        # set previous attempts in attempt_list to FINAL
         if self.game_mode == Gamemode.BLIND_TRIAL:
             self.convert_provision_to_final()
 
-        # current attmept is PROVISIONAL if game mode is Blind Trial, else its Final
+        # current attempt is PROVISIONAL if game mode is Blind Trial, else its Final
         status = FeedbackStatus.PROVISIONAL if self.game_mode == Gamemode.BLIND_TRIAL else FeedbackStatus.FINAL
 
         feedback_obj = Feedback(feedback[0], feedback[1], status)
@@ -129,7 +129,7 @@ class Game:
 
         This is relevant for Blind Trial mode. It iterates through all attempts in attempt_list and sets the status on
         FINAL. This method is called in set_feedback() right before the new feedback of the current attempt is set.
-        Therefore all previous attepmts will be set FINAL and the newest attempt will be PROVISIONAL.
+        Therefore all previous attempts will be set FINAL and the newest attempt will be PROVISIONAL.
         """
         # for safety
         for attempt in self.attempt_list:

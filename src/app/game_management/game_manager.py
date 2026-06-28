@@ -60,6 +60,9 @@
 # - gibt dieses Object als dict zum Port
 
 
+import logging
+import sys
+
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
@@ -72,19 +75,41 @@ from app.ports.driving.for_game_administration import ForGameAdministration
 
 
 class GameManager(ForGameAdministration, ForConfiguringGame):
-    """The GameManager's implementation of the `ForGameAdministration` and
-    `ForConfiguringGame` Ports.
+    """The GameManager is responsible for orchestrating the lifecycle of the game.
+    It receives user input (it implements of the `ForGameAdministration` and
+    `ForConfiguringGame` Ports) and controls the game flow.
+    It saves and loads the configuration to and from the `ForPersistingConfig` port,
+    asks for the players to be assembled through the `ForAssemblingPLayers` Port,
+    and delegates the actual game logic to the `GameEngine`.
+    It also handles the persistence of the current game state through the
+    `ForPersistingGame` port and can load an interrupted game from that port.
+
+     The GameManager is instantiated by the `SupersuperhirnApp` which passes it the ports
+     to persist the configuration and game data, and the port to assemble the players.
+     It creates its own `ConfigManager` and `GameEngine` to delegate tasks to them.
+
+     Shape of the configuration dict that the user adapter passes to the GameManager:
+        {
+             "gamemode":             str,   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+             "user_role":            str,   # CODEMAKER | CODEBREAKER | OBSERVER
+             "network_enabled":      bool,
+             "countdown_millis":     int,   # TIME_TRIAL countdown time, milliseconds
+             "delay_millis":         int,   # OBSERVER mode: ms between auto-moves so progress is visible
+         }
     """
+
+    # TODO: which players (adapters) should be assembled must be loaded from the persisted game data
+    #  and sent to the ForAssemblingPlayers port
 
     def __init__(
         self,
-        persist_config: ForPersistingConfig,
-        assembling_players: ForAssemblingPlayers,
-        persist_game: ForPersistingGame,
+        persist_config_port: ForPersistingConfig,
+        assembling_players_port: ForAssemblingPlayers,
+        persist_game_port: ForPersistingGame,
     ):
-        self._persist_config = persist_config
-        self._assembling_players = assembling_players
-        self._persist_game = persist_game
+        self._persist_config_port = persist_config_port
+        self._assembling_players_port = assembling_players_port
+        self._persist_game_port = persist_game_port
 
         # per game, declared absent at first:
         self._config_manager: ConfigManager | None = None
@@ -101,52 +126,119 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         Returns: None
         """
-        config_dict = self.load_config()
+        self._configure_and_run()
+
+    def resume_interrupted(self) -> None:
+        """Resumes the interrupted game (loads the saved game and continues the game)."""
+
+        # TODO: handle corrupt-persist: load_game() + GameEngine.resume() (called inside _configure_and_run)
+        #  can raise ValueError AND KeyError on a corrupt save. Not caught here yet.
+        #  This is the eventual catch spot (kept separate from the run() illegal-move catch).
+        game_data = self._persist_game_port.load_game()
+        self._configure_and_run(game_data)
+
+    def _configure_and_run(self, game_data: dict | None = None) -> None:
+        """Shared flow for start game/resume interrupted to set up and run a
+        game round.
+
+        When game data is given with resume_interrupted(), the saved game's config (game_data["matchup"])
+        overwrites the loaded configuration so the Matchmaker can rewire the same adapters,
+        and the GameEngine is created via Engine.resume() before Engine.run().
+        Engine.run() continues the existing, saved game instead of creating a new game.
+        """
+        config_dict = self.load_config()  # load from save config JSON
+        if game_data is not None:  # Resumed interrupted game
+            # game_data["matchup"] will overwrite any config selection entries that differ from
+            # the saved game's config for this round (doesn't re-save config to ForPersistingConfig Port).
+            config_dict = {**config_dict, **game_data.get("matchup", {})}  # overwrite game config
+
         config_manager = ConfigManager(config_dict)
-        game_config = config_manager.create_config_obj()
+        game_config = config_manager.create_config_obj()  # type Config
         self._config_manager = config_manager
 
-        players_config = {
+        self._game_engine = GameEngine(game_config)
+        if game_data is not None:
+            self._game_engine.resume(game_data)
+
+        players_config_for_port = {
             **config_dict,
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
         }
+        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
 
-        codemaker, codebreaker = self._assembling_players.assemble_players(players_config)
+        try:
+            self._game_engine.run(codemaker, codebreaker)
+        except (ValueError, TypeError):  # generic except for now instead of custom to save time
+            # doesn't include resume/load of a corrupt json
+            logging.warning("Illegal move has reached the app; aborting round without saving.", exc_info=True)
+            self._game_engine = None
+            self._config_manager = None
+            return
 
-        self._game_engine = GameEngine(game_config)
+        self._persist_current_game()
 
-        # TODO: "run engine → persist (Step 4 tail); persist-policy still open: finished games vs interrupted-only."
+    def start_game_delete_interrupted(self) -> None:
+        """Starts the game and deletes the interrupted game (clears the board and
+        starts a new game).
+        """
+        self._persist_game_port.delete_game()
+        self.start_game()
 
-    def start_game_delete_interrupted(self) -> None: ...
+    def interrupt_game(self) -> None:
+        """Interrupts the game (saves the game for a later time and stops it)."""
+        if self._game_engine is None:  # no active game to interrupt (like if abort after illegal move passed)
+            return
+        self._game_engine.interrupt_game()
+        self._persist_current_game()
 
-    def resume_interrupted(self) -> None: ...
+    def _persist_current_game(self) -> None:
+        """Build the dict to persist the current game and save it."""
+        game_data = self._game_engine.create_game_persist_object()
+        self._persist_game_port.save_game(game_data)
 
-    def interrupt_game(self) -> None: ...
+    def abort_game(self) -> None:
+        """Aborts the game (clears the board and stops the game)."""
+        if self._game_engine is not None:
+            self._game_engine.interrupt_game()  # brauch anderen Name (namenskonflikt)
+        self._game_engine = None
+        self._config_manager = None
 
-    def abort_game(self) -> None: ...
+    def restart_game(self) -> None:
+        """Restarts the game (clears the board and starts a new game)."""
+        self.abort_game()
+        self.start_game()
 
-    def restart_game(self) -> None: ...
-
-    def exit_application(self) -> None: ...
+    def exit_application(self) -> None:
+        """Exits the application (closes the entire program), saving the
+        current game beforehand."""
+        if self._game_engine is not None:
+            self.interrupt_game()
+        sys.exit()
 
     # ForConfiguringGame methods
 
     def save_config(self, config: dict) -> None:
         """Validates the provided configuration and if valid, saves it to a file."""
-        print("Saving Data. Method Called in Save Config")
-        # self._validate_config(config)
-        self._persist_config.save_config_dict(config)
+        self._validate_config(config)
+        self._persist_config_port.save_config_dict(config)
 
     def load_config(self) -> dict:
-        """Loads the configuration from a file."""
-        # return self._persist_config.load_config_dict()
-        print("Loading Data. Method Called in Load Config")
-        return {"DummyKey1": "DummyValue1"}
+        """Loads the configuration from a file, loading the default config if no file
+        is found. The method validates the loaded configuration before returning it.
+        Returns:
+            A dict containing the loaded configuration.
+        """
+        config = self._persist_config_port.load_config_dict()
+        self._validate_config(config)
+        return config
 
     def reset_config(self) -> None:
-        """Resets the configuration to the default values."""
-        self._persist_config.reset_to_default()
+        """Resets the configuration to the default values by delegating to the
+        Adapter in charge of persisting the Config. The default values will be
+        validated at the start of the next game.
+        """
+        self._persist_config_port.reset_to_default()  # adapter takes care of this
 
     @staticmethod
     def _validate_config(config: dict) -> None:

@@ -53,8 +53,8 @@ class ForPersistingGame(ABC):
                    `GameManager.startGame()`
                    --> `GameEngine.run(codemaker, codebreaker): Game`
                 (2) game stopped
-                   --> `GameEngine.createGamePersistObject(): Object`
-                   --> GameManager receives this Object from GameEngine
+                   --> `GameEngine.createGamePersistObject(): dict`
+                   --> GameManager receives this dict from GameEngine
                    --> GameManager passes it on to the Game-Persisting Adapter as the `game_data` (dict).
         """
 
