@@ -46,6 +46,7 @@ from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGam
 #                     "remaining_time_millis": int,  # TIME_TRIAL only; milliseconds
 #                     "matchup": dict,             # opaque to the core, round-tripped only
 #                 }
+#
 
 
 @pytest.fixture
