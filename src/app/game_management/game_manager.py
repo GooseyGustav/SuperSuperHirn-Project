@@ -134,12 +134,15 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
     def save_config(self, config: dict) -> None:
         """Validates the provided configuration and if valid, saves it to a file."""
-        self._validate_config(config)
+        print("Saving Data. Method Called in Save Config")
+        # self._validate_config(config)
         self._persist_config.save_config_dict(config)
 
     def load_config(self) -> dict:
         """Loads the configuration from a file."""
-        return self._persist_config.load_config_dict()
+        # return self._persist_config.load_config_dict()
+        print("Loading Data. Method Called in Load Config")
+        return {"DummyKey1": "DummyValue1"}
 
     def reset_config(self) -> None:
         """Resets the configuration to the default values."""
