@@ -4,8 +4,8 @@ import random
 from app.ports.driven.for_getting_moves.for_getting_codebreaker_move import ForGettingCodebreakerMove
 
 # Alias
-Code = tuple[int, int, int, int, int]
-Feedback = tuple[int, ...]
+Code = list[int]
+Feedback = list[int]
 Attempt = tuple[Code, Feedback, str]
 
 
@@ -34,7 +34,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
 
     # The first guess that is sent by this algorithm. It is common for Knuth Algorithm implementations
     # to start with 2 repeated numbers (and an additional third color_id, since the codes length is 5).
-    _OPENING_GUESS = (1, 1, 2, 2, 3)
+    _OPENING_GUESS = [1, 1, 2, 2, 3]
 
     def __init__(self) -> None:
         # The entire Codespace of all possible code combinations
@@ -92,9 +92,9 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         for attempt in attempt_list:
             guess, feedback, status = attempt
 
-            if status == "final":
+            if status == "FINAL":
                 candidates = self._filter_by_exact_feedback(candidates, guess, feedback)
-            else:
+            elif status == "PROVISIONAL":
                 candidates = self._filter_by_provisional_feedback(candidates, guess, feedback)
 
             # Only happens, if the feedback given to a guess is falsy, hence the secret can no longer be determined.
@@ -118,7 +118,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         expected_black, expected_white = self._feedback_to_counts(feedback)
         return [
             code for code in candidates
-            if self._calc_candidate_guess_final_match(code, guess) == (expected_black, expected_white)
+            if self._calc_candidate_guess_final_match(code, guess) == [expected_black, expected_white]
         ]
 
     def _filter_by_provisional_feedback(
@@ -166,20 +166,20 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         for guess, feedback, status in attempt_list:
 
             guess_valid = (
-                isinstance(guess, tuple)
+                isinstance(guess, list)
                 and len(guess) == CpuCodebreaker.CODE_LENGTH
-                and all(isinstance(x, int) for x in guess)
+                and all(isinstance(x, int) and not isinstance(x, bool) for x in guess)
                 and all(1 <= c <= CpuCodebreaker.NUM_COLORS for c in guess)
             )
 
             feedback_valid = (
-                isinstance(feedback, tuple)
+                isinstance(feedback, list)
                 and len(feedback) <= CpuCodebreaker.CODE_LENGTH
-                and all(isinstance(f, int) for f in feedback)
-                and all(f in (7, 8) for f in feedback)
+                and all(isinstance(f, int) and not isinstance(f, bool) for f in feedback)
+                and all(f in (CpuCodebreaker.WHITE_PEG, CpuCodebreaker.BLACK_PEG) for f in feedback)
             )
 
-            status_valid = status in ("final", "provisional")
+            status_valid = status in ("FINAL", "PROVISIONAL")
 
             if not (guess_valid and feedback_valid and status_valid):
                 return False
@@ -187,12 +187,12 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         return True
 
     @staticmethod
-    def _feedback_to_counts(feedback: Feedback) -> tuple[int, int]:
+    def _feedback_to_counts(feedback: Feedback) -> list[int, int]:
         """
         Count black and white pegs contained in a feedback tuple.
 
         Returns:
-            tuple[int, int]:
+            list[int, int]:
                 (black_count, white_count)
         """
         black = sum(1 for pin in feedback if pin == CpuCodebreaker.BLACK_PEG)
@@ -203,13 +203,13 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
     def _calc_candidate_guess_final_match(
         secret: Code,
         guess: Code
-    ) -> tuple[int, int]:
+    ) -> list[int]:
         """
         Compute the exact Mastermind score for a candidate secret code and a
         guess.
 
         Returns:
-            tuple[int, int]:
+            list[int, int]:
                 (black_pegs, white_pegs)
 
         Black-peg matches are removed before counting white pegs to prevent
@@ -230,7 +230,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         for color in set(guess_remaining):
             white += min(secret_remaining.count(color), guess_remaining.count(color))
 
-        return black, white
+        return [black, white]
 
     @staticmethod
     def _calc_candidate_guess_provisional_match(
@@ -291,7 +291,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         for guess in guess_pool:
             partitions = {}
             for candidate in candidates:
-                pattern = self._calc_candidate_guess_final_match(candidate, guess)
+                pattern = tuple(self._calc_candidate_guess_final_match(candidate, guess))
                 partitions[pattern] = partitions.get(pattern, 0) + 1
 
             worst_case = max(partitions.values())
