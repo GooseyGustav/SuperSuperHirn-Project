@@ -36,7 +36,6 @@ class SuperSuperhirnRunner():
             self.app.for_game_configuration(),
             self.app.for_game_administration()
         )
-        self.network_manager = None
         self.main_window = MainWindow(self.ui_service_adapter)
 
     def _connect_gui_adapter_to_ui(self, player_adapter: dict):
