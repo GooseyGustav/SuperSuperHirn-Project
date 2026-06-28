@@ -39,3 +39,8 @@ class ForGameAdministration(ABC):
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
         starts a new game)."""
+
+    @abstractmethod
+    def start_network_game(self, ip_address: str, gamer_id: str) -> None:
+        """Starts the game with a remote player. The App connects to the remote player's
+        IP address and provides the User's Gamer ID."""
