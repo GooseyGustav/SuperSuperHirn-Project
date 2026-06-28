@@ -146,17 +146,26 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         and the GameEngine is created via Engine.resume() before Engine.run().
         Engine.run() continues the existing, saved game instead of creating a new game.
         """
+        # try:
         config_dict = self.load_config()  # load from save config JSON
+        # except ValueError as e:
+        #     logging.warning("Error loading config: %s", e)
+        #     # self.reset_config()
+
+        # try  :
         if game_data is not None:  # Resumed interrupted game
             # game_data["matchup"] will overwrite any config selection entries that differ from
             # the saved game's config for this round (doesn't re-save config to ForPersistingConfig Port).
             config_dict = {**config_dict, **game_data.get("matchup", {})}  # overwrite game config
+        # except ValueError as e:
+        #     logging.warning("Error loading matchup details from saved game data: %s", e)
 
         config_manager = ConfigManager(config_dict)
         game_config = config_manager.create_config_obj()  # type Config
         self._config_manager = config_manager
 
         self._game_engine = GameEngine(game_config)
+
         if game_data is not None:
             self._game_engine.resume(game_data)
 
@@ -165,7 +174,14 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
         }
-        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
+
+        try:
+            codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
+        except (ValueError, TypeError) as e:
+            logging.warning("Error assembling players: %s", e)
+            self._game_engine = None
+            self._config_manager = None
+            return  # or raise to User for decision like reset_config() etc.
 
         try:
             self._game_engine.run(codemaker, codebreaker)
@@ -248,11 +264,16 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         # enum fields are validated by the enum itself with simple attempts
         Gamemode(config["gamemode"])  # ValueError if not a valid Gamemode
-        Role(config["user_role"])  # ValueError if not a valid Role
+        user_role = Role(config["user_role"])  # ValueError if not a valid Role
+        network_enabled = config["network_enabled"]
 
         # bool check
         if not isinstance(config["network_enabled"], bool):
             raise ValueError("network_enabled must be a boolean")
+
+        # check network only with user_role = codebreaker
+        if network_enabled and user_role is not Role.CODEBREAKER:
+            raise ValueError("network_enabled is only valid with user_role set to codebreaker")
 
         # non-negative int check for time
         for key in ("countdown_millis", "delay_millis"):
