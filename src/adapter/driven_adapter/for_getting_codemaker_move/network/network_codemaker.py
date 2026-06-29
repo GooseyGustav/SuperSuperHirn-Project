@@ -1,3 +1,8 @@
+import logging
+import time
+
+import requests
+
 from app.ports.driven.for_getting_moves.for_getting_codemaker_move import ForGettingCodemakerMove
 from network.network_manager import NetworkManager
 
@@ -8,6 +13,9 @@ class NetworkCodemaker(ForGettingCodemakerMove):
     This adapter acts as the bridge between the domain logic (working with integer lists)
     and the external HTTP server (working with JSON strings and maintaining a gameid).
     """
+
+    MAX_RESEND_ATTEMPTS = 10
+    RETRY_PAUSE_SECONDS = 0.5
 
     def __init__(self, network_manager: NetworkManager, gamerid: str, positions: int, colors: int) -> None:
         """Initialize the network adapter.
@@ -71,6 +79,7 @@ class NetworkCodemaker(ForGettingCodemakerMove):
 
     def get_feedback(self, secret_code: list[int], guess: list[int]) -> list[int]:
         """Send a guess to the remote server and return the parsed feedback.
+        Resends same guess on bad/failed reply (aborts after a maximum number of resends).
 
         Args:
             secret_code: Ignored in network mode (the remote server holds the secret).
@@ -85,13 +94,17 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         payload = self._build_base_payload()
         payload["value"] = guess_string
 
-        response = self.network_manager.post_json(payload)
-
-        # Convert feedback string to list (e.g., "887" -> [8, 8, 7])
-        feedback_string = response.get("value", "")
-        feedback_list = [int(char) for char in feedback_string]
-
-        return feedback_list
+        # System to resend message with guess if we get bad feedback messages
+        last_error = None
+        for attempt in range(self.MAX_RESEND_ATTEMPTS):
+            try:
+                response = self.network_manager.post_json(payload)
+                return self._parse_feedback(response)
+            except (ValueError, requests.RequestException) as e:
+                last_error = e
+                logging.warning("Bad feedback message: %s", e)
+                time.sleep(self.RETRY_PAUSE_SECONDS)
+        raise ValueError(f"No valid feedback after {self.MAX_RESEND_ATTEMPTS} attempts ({last_error}).")
 
     def _build_base_payload(self) -> dict:
         """Create the boilerplate JSON structure required by the server."""
@@ -101,3 +114,18 @@ class NetworkCodemaker(ForGettingCodemakerMove):
             "positions": self.positions,
             "colors": self.colors,
         }
+
+    # helper method to raise Errors on bad feedback messages
+    def _parse_feedback(self, response: dict) -> list[int]:
+        if not isinstance(response, dict):
+            raise ValueError(f"response is not a dict: {response!r}")
+        value = response.get("value")
+        if not isinstance(value, str):
+            raise ValueError(f"'value' missing or is not a string: {value!r}")
+        if value == "":
+            return []
+        if not all(char in ("7", "8") for char in value):
+            raise ValueError(f"chars are not feedback pegs: {value!r}")
+        if len(value) > self.positions:
+            raise ValueError(f"feedback too long: {value!r}")
+        return [int(char) for char in value]
