@@ -143,8 +143,6 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         )
         thread.start()
 
-        # self._configure_and_run()
-
     def start_network_game(self, ip_address: str, gamer_id: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
         IP address and provides the User's Gamer ID."""
