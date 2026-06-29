@@ -62,6 +62,7 @@
 
 import logging
 import sys
+import threading
 
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
@@ -136,7 +137,13 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._ip_address = None
         self._gamer_id = None
 
-        self._configure_and_run()
+        thread = threading.Thread(
+            target=self._configure_and_run,
+            daemon=True
+        )
+        thread.start()
+
+        # self._configure_and_run()
 
     def start_network_game(self, ip_address: str, gamer_id: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
