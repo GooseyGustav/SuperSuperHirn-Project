@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(view)
 
     def set_ui_adapter(self, player_adapter: dict):
-        self.home_controller.set_gui_adapter(player_adapter)
+        self.player_adapter = player_adapter
 
     def get_service_adapter(self):
         return self.ui_service_adapter
