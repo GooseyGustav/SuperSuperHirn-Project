@@ -29,6 +29,8 @@ class ForAssemblingPlayers(ABC):
                     "delay_millis":        int,
                     "number_of_positions": int,   # fixed constant, app-injected (5) (board size/code length)
                     "number_of_colors":    int,   # fixed constant, app-injected (8)
+                    "ip_address":          str,  # only for network game; None if local
+                    "gamer_id":            str,  # only for network game; None if local
                 }
 
         Returns:
