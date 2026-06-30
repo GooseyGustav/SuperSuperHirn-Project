@@ -6,7 +6,13 @@ class ConfigJsonAdapter(ForPersistingConfig):
         pass
 
     def load_config_dict(self) -> dict:
-        return {}
+                return {
+                    "gamemode":             "CLASSIC",   # CLASSIC | TIME_TRIAL | BLIND_TRIAL
+                    "user_role":            "CODEBREAKER",   # CODEMAKER | CODEBREAKER | OBSERVER
+                    "network_enabled":      False,
+                    "countdown_millis":     1000,   # TIME_TRIAL countdown time, milliseconds
+                    "delay_millis":         1000,   # OBSERVER mode: ms between auto-moves so progress is visible
+                }
 
     def save_config_dict(self, config_dict: dict) -> None:
         print(f"JSON Config Driven Adapter. Dummy Save of {config_dict}")
