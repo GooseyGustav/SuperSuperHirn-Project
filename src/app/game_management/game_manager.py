@@ -115,6 +115,11 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._config_manager: ConfigManager | None = None
         self._game_engine: GameEngine | None = None
 
+        # for network game
+        self._network_enabled: bool = False
+        self._ip_address: str | None = None  # TODO : maybe change port method args to server_url if not just ip adress
+        self._gamer_id: str | None = None
+
     # ForGameAdministration methods
 
     def start_game(self) -> None:
@@ -126,10 +131,26 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         Returns: None
         """
+        # make sure local Game doesnt launch network
+        self._network_enabled = False
+        self._ip_address = None
+        self._gamer_id = None
+
         self._configure_and_run()
+
+    def start_network_game(self, ip_address: str, gamer_id: str) -> None:
+        """Starts the game with a remote player. The App connects to the remote player's
+        IP address and provides the User's Gamer ID."""
+        self._network_enabled = True
+        self._ip_address = ip_address
+        self._gamer_id = gamer_id
+        self._configure_and_run()
+        # does not persist on purpose
 
     def resume_interrupted(self) -> None:
         """Resumes the interrupted game (loads the saved game and continues the game)."""
+
+        self._network_enabled = False
 
         # TODO: handle corrupt-persist: load_game() + GameEngine.resume() (called inside _configure_and_run)
         #  can raise ValueError AND KeyError on a corrupt save. Not caught here yet.
@@ -146,17 +167,27 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         and the GameEngine is created via Engine.resume() before Engine.run().
         Engine.run() continues the existing, saved game instead of creating a new game.
         """
+        # get config for all elemnts
         config_dict = self.load_config()  # load from save config JSON
+
+        # overwrite players assembly to resume an interrupted in assembly it was started in
         if game_data is not None:  # Resumed interrupted game
             # game_data["matchup"] will overwrite any config selection entries that differ from
             # the saved game's config for this round (doesn't re-save config to ForPersistingConfig Port).
             config_dict = {**config_dict, **game_data.get("matchup", {})}  # overwrite game config
+
+        # make sure the "real". live bool ist active (not old saved config)
+        config_dict["network_enabled"] = self._network_enabled
+
+        # recheck
+        self._validate_config(config_dict)
 
         config_manager = ConfigManager(config_dict)
         game_config = config_manager.create_config_obj()  # type Config
         self._config_manager = config_manager
 
         self._game_engine = GameEngine(game_config)
+
         if game_data is not None:
             self._game_engine.resume(game_data)
 
@@ -164,8 +195,17 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             **config_dict,
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
+            "ip_address": self._ip_address,
+            "gamer_id": self._gamer_id,
         }
-        codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
+
+        try:
+            codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
+        except (ValueError, TypeError) as e:
+            logging.warning("Error assembling players: %s", e)
+            self._game_engine = None
+            self._config_manager = None
+            return  # or raise to User for decision like reset_config() etc.
 
         try:
             self._game_engine.run(codemaker, codebreaker)
@@ -193,7 +233,11 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._persist_current_game()
 
     def _persist_current_game(self) -> None:
-        """Build the dict to persist the current game and save it."""
+        """Build the dict to persist the current local game and save it.
+        Does not save network games.
+        """
+        if self._network_enabled:
+            return
         game_data = self._game_engine.create_game_persist_object()
         self._persist_game_port.save_game(game_data)
 
@@ -248,11 +292,16 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         # enum fields are validated by the enum itself with simple attempts
         Gamemode(config["gamemode"])  # ValueError if not a valid Gamemode
-        Role(config["user_role"])  # ValueError if not a valid Role
+        user_role = Role(config["user_role"])  # ValueError if not a valid Role
+        network_enabled = config["network_enabled"]
 
         # bool check
         if not isinstance(config["network_enabled"], bool):
             raise ValueError("network_enabled must be a boolean")
+
+        # check network only with user_role = codebreaker
+        if network_enabled and user_role is not Role.CODEBREAKER:
+            raise ValueError("network_enabled is only valid with user_role set to codebreaker")
 
         # non-negative int check for time
         for key in ("countdown_millis", "delay_millis"):
