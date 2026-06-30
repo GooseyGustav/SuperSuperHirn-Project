@@ -65,7 +65,6 @@ class ConfigJsonAdapter(ForPersistingConfig):
             else self.base_dir / "default_game_config.json"
         )
 
-        # TODO Error-handling ?
         if self.config_file_path.parent != self.base_dir:
             raise ValueError("config_file_path must be directly inside base_dir")
 
