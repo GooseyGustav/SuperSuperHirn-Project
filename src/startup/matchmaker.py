@@ -27,15 +27,6 @@ OBSERVER = "OBSERVER"
 
 class Matchmaker(ForAssemblingPlayers):
 
-    # default for network test to build http url
-    # change here
-    # PORT = 8080
-    # PATH = "/"
-
-    # For the network test, in case use CLI driver
-    # DEFAULT_SERVER_URL = "http://SALINGERSIP:HIER"
-    # DEFAULT_GAMER_ID = "team13"
-
     def __init__(self, gui_callback=None):
         # self._player_adapter: dict = {} # unused (direct call)
         self._gui_callback = gui_callback  # in diagram/class ref.: "onGuiGameStart"
@@ -58,7 +49,7 @@ class Matchmaker(ForAssemblingPlayers):
                     "delay_millis":        int,
                     "number_of_positions": int,   # fixed constant, app-injected (5) (board size/code length)
                     "number_of_colors":    int,   # fixed constant, app-injected (8)
-                    "network_address":          str,  # only for network game; None if local
+                    "network_address":     str,  #  url or "<ip>:<port>" only for network game; None if local
                     "gamer_id":            str,  # only for network game; None if local
                 }
 
@@ -66,7 +57,8 @@ class Matchmaker(ForAssemblingPlayers):
             this round's two player adapters.
 
         Raises:
-
+            ValueError: invalid user role choice or players assembly configuration.
+            ConnectionError: network connection failure (network "handshake" for network game failed).
         """
 
         network_enabled = config["network_enabled"]
