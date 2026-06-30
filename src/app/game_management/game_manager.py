@@ -60,8 +60,10 @@
 # - gibt dieses Object als dict zum Port
 
 
+import ipaddress
 import logging
 import sys
+from urllib.parse import urlparse
 
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
@@ -117,7 +119,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         # for network game
         self._network_enabled: bool = False
-        self._ip_address: str | None = None  # TODO : maybe change port method args to server_url if not just ip adress
+        self._network_address: str | None = None
         self._gamer_id: str | None = None
 
     # ForGameAdministration methods
@@ -131,18 +133,39 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         Returns: None
         """
-        # make sure local Game doesnt launch network
+        # make sure local Game doesn't launch network
         self._network_enabled = False
-        self._ip_address = None
+        self._network_address = None
         self._gamer_id = None
 
         self._configure_and_run()
 
-    def start_network_game(self, ip_address: str, gamer_id: str) -> None:
+    def start_network_game(self, network_address: str, gamer_id: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
-        IP address and provides the User's Gamer ID."""
+        network address and provides the User's Gamer ID. The implementer is responsible for
+        validating the network address and gamer ID.
+
+        Args:
+            network_address: IP:port or URL ("http://" or "https://" optional.)
+            gamer_id: the user's gamer ID
+
+        Raises:
+            ValueError: data or protocol failure :
+                - invalid network address: empty, no host, bad/missing port (IP always needs port)
+                - bad server response, invalid gameid, mismatch in game configuration (nr of positions, colors)
+            ConnectionError: network connection failure:
+                - can't reach remote player
+                - connection lost during game (--> aborts game round)
+
+        Note:
+            Raised Errors -> driving adapter can fix and retry (GUI: ask input again)
+            Illegal move from remote player during game -> logged, game round aborted silently
+            (no error raise).
+        """
+        network_address = self._normalize_address(network_address)
+        self._validate_normalized_network_address(network_address)  # raises ValueError if invalid
         self._network_enabled = True
-        self._ip_address = ip_address
+        self._network_address = network_address
         self._gamer_id = gamer_id
         self._configure_and_run()
         # does not persist on purpose
@@ -166,8 +189,12 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         overwrites the loaded configuration so the Matchmaker can rewire the same adapters,
         and the GameEngine is created via Engine.resume() before Engine.run().
         Engine.run() continues the existing, saved game instead of creating a new game.
+
+        Raises:
+
+
         """
-        # get config for all elemnts
+        # get config for all elements
         config_dict = self.load_config()  # load from save config JSON
 
         # overwrite players assembly to resume an interrupted in assembly it was started in
@@ -176,7 +203,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             # the saved game's config for this round (doesn't re-save config to ForPersistingConfig Port).
             config_dict = {**config_dict, **game_data.get("matchup", {})}  # overwrite game config
 
-        # make sure the "real". live bool ist active (not old saved config)
+        # make sure the "real" live bool ist active (not old saved config)
         config_dict["network_enabled"] = self._network_enabled
 
         # recheck
@@ -191,25 +218,32 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         if game_data is not None:
             self._game_engine.resume(game_data)
 
-        players_config_for_port = {
+        players_config_for_players_assembling_port = {
             **config_dict,
             "number_of_positions": game_config.number_of_positions,
             "number_of_colors": game_config.number_of_colors,
-            "ip_address": self._ip_address,
+            "network_address": self._network_address,
             "gamer_id": self._gamer_id,
         }
 
         try:
-            codemaker, codebreaker = self._assembling_players_port.assemble_players(players_config_for_port)
-        except (ValueError, TypeError) as e:
+            codemaker, codebreaker = self._assembling_players_port.assemble_players(
+                players_config_for_players_assembling_port
+            )
+        except (ValueError, TypeError, ConnectionError) as e:
             logging.warning("Error assembling players: %s", e)
             self._game_engine = None
             self._config_manager = None
-            return  # or raise to User for decision like reset_config() etc.
+            raise
 
         try:
             self._game_engine.run(codemaker, codebreaker)
-        except (ValueError, TypeError):  # generic except for now instead of custom to save time
+        except ConnectionError:  # tells driver (GUI): problem with network
+            logging.warning("Network failure during game; aborting game.", exc_info=True)
+            self._game_engine = None
+            self._config_manager = None
+            raise
+        except (ValueError, TypeError):  # illegal move -> quiet abort (not passes to GUI)
             # doesn't include resume/load of a corrupt json
             logging.warning("Illegal move has reached the app; aborting round without saving.", exc_info=True)
             self._game_engine = None
@@ -270,8 +304,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
     def load_config(self) -> dict:
         """Loads the configuration from a file, loading the default config if no file
         is found. The method validates the loaded configuration before returning it.
+
         Returns:
-            A dict containing the loaded configuration.
+            dict: the loaded configuration.
         """
         config = self._persist_config_port.load_config_dict()
         self._validate_config(config)
@@ -289,8 +324,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """Validates the provided configuration dictionary.
         Will pass silently if the configuration is valid, raises ValueError otherwise.
         """
-
-        # enum fields are validated by the enum itself with simple attempts
+        # enum fields are validated by the enum itself with simple instantiation attempts
         Gamemode(config["gamemode"])  # ValueError if not a valid Gamemode
         user_role = Role(config["user_role"])  # ValueError if not a valid Role
         network_enabled = config["network_enabled"]
@@ -308,3 +342,43 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             value = config[key]
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{key} must be a non-negative integer")
+
+    @staticmethod
+    def _validate_normalized_network_address(normalized_network_address: str):
+        """Validates the provided network address.
+        Accepts IP:port or URLs with optional http:// or https://.
+        IP requires explicit port, URL/hostname doesn't.
+        Will pass silently if the address is valid, raises ValueError otherwise.
+        """
+        parsed_address = urlparse(normalized_network_address)
+
+        if not parsed_address.hostname:
+            raise ValueError(f"No valid host found in: {normalized_network_address}")
+
+        # catch port errors
+        try:
+            port = parsed_address.port
+        except ValueError:
+            raise ValueError(f"No valid port found in: {normalized_network_address!r}")
+
+        # if ip address, make sure valid (IP: port mandatory, hostname: port optional)
+        # (don't need regex thanks to ipaddress lib)
+        try:
+            ipaddress.ip_address(parsed_address.hostname)
+            is_ip_address = True
+        except ValueError:
+            is_ip_address = False
+
+        if is_ip_address and port is None:
+            raise ValueError(f"IP requires explicit port: {normalized_network_address!r}")
+
+    @staticmethod
+    def _normalize_address(address_arriving_from_port: str) -> str:
+        if not address_arriving_from_port or not address_arriving_from_port.strip():
+            raise ValueError("network_address cannot be empty")
+
+        address_arriving_from_port = address_arriving_from_port.strip()
+
+        if not address_arriving_from_port.startswith(("http://", "https://")):
+            address_arriving_from_port = f"http://{address_arriving_from_port}"
+        return address_arriving_from_port
