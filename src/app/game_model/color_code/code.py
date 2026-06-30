@@ -16,7 +16,14 @@ class Code:
         self.code = code
 
     def __eq__(self, other: object) -> bool:
-        """Return True if both codes have identical colors in every slot."""
+        """Return True if both codes have identical colors in every slot.
+
+        Args:
+            other (object): Object to compare with this code.
+
+        Returns:
+            bool: True if both codes have the same colors in the same order, otherwise False.
+        """
         if not isinstance(other, Code):
             return NotImplemented
 
@@ -27,12 +34,16 @@ class Code:
     def set_code(self, code: list[int]) -> None:
         """Replace the current sequence with a new one built from integer color IDs.
 
-        Each integer is converted to a Color and wrapped in a Slot.
-        Raises ValueError if any ID does not map to a known Color.
+        Args:
+            code (list[int]): Code as a list of integers representing available colors.
         """
         slots = [Slot(Color(c)) for c in code]
         self.code = (len(slots), slots)
 
     def get_code(self) -> list[Slot]:
-        """Return the list of Slots that make up this code."""
+        """Return the list of Slots that make up this code.
+
+        Returns:
+            list[Slot]: List of slots representing a code.
+        """
         return self.code[1]
