@@ -6,6 +6,15 @@ from app.ports.driven.for_persisting.for_persisting_config import ForPersistingC
 
 
 class ConfigJsonAdapter(ForPersistingConfig):
+    """JSON-file implementation of the ForPersistingConfig port.
+
+    The adapter stores the currently selected game configuration in
+    `current_game_config.json` and keeps a default configuration in
+    `default_game_config.json`. Both files must live directly inside `base_dir`.
+    If config files are missing or contain invalid JSON, the adapter restores
+    usable values from the default file or from `DEFAULT_CONFIG`.
+    """
+
     DEFAULT_CONFIG = {
         "gamemode": "CLASSIC",
         "user_role": "CODEBREAKER",
@@ -35,8 +44,8 @@ class ConfigJsonAdapter(ForPersistingConfig):
                 If `None`, `default_game_config.json` inside `base_dir` is used.
 
         Raises:
-            ValueError: _description_
-            ValueError: _description_
+            ValueError: If `config_file_path` is not directly inside `base_dir`.
+            ValueError: If `default_file_path` is not directly inside `base_dir`.
         """
 
         # Resolve the base directory, or use the directory of this adapter file.
@@ -66,6 +75,15 @@ class ConfigJsonAdapter(ForPersistingConfig):
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def load_config_dict(self) -> dict:
+        """Load the current game configuration as a dictionary.
+
+        If the current config file is missing, invalid JSON, or does not contain
+        a JSON object, the adapter falls back to the default config and writes it
+        back as the current config.
+
+        returns:
+            dict: The current game config as a dictionary.
+        """
         try:
             return self._read_json_dict(self.config_file_path)
         except (FileNotFoundError, JSONDecodeError, ValueError):
@@ -74,14 +92,21 @@ class ConfigJsonAdapter(ForPersistingConfig):
             return default_config
 
     def save_config_dict(self, config_dict: dict) -> None:
+        """Save the provided config dictionary as pretty-printed JSON.
+
+        Args:
+            config_dict (dict): The game config as a dictionary.
+        """
         self._write_json_dict(self.config_file_path, config_dict)
 
     def reset_to_default(self) -> None:
+        """Reset current and default config files to the hardcoded defaults."""
         default_config = self.DEFAULT_CONFIG.copy()
         self._write_json_dict(self.default_file_path, default_config)
         self._write_json_dict(self.config_file_path, default_config)
 
     def _load_default_config(self) -> dict:
+        """Load the default config or recreate it from hardcoded defaults."""
         try:
             return self._read_json_dict(self.default_file_path)
         except (FileNotFoundError, JSONDecodeError, ValueError):
@@ -91,6 +116,7 @@ class ConfigJsonAdapter(ForPersistingConfig):
 
     @staticmethod
     def _read_json_dict(path: Path) -> dict:
+        """Read a JSON file and ensure that its root value is a dictionary."""
         with path.open("r", encoding="utf-8") as json_file:
             data = json.load(json_file)
 
@@ -101,6 +127,7 @@ class ConfigJsonAdapter(ForPersistingConfig):
 
     @staticmethod
     def _write_json_dict(path: Path, config_dict: dict) -> None:
+        """Write a dictionary to a JSON file using stable, readable formatting."""
         with path.open("w", encoding="utf-8") as json_file:
             json.dump(config_dict, json_file, indent=4)
             json_file.write("\n")
