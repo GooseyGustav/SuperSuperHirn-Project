@@ -36,6 +36,7 @@ def engine(default_config):
 
 
 def test_game_engine_constructor_initializes_state():
+    """The constructor stores the config and starts without shutdown flag or game."""
     config = Config(
         gamemode=Gamemode.CLASSIC,
         user_role=Role.CODEBREAKER,
@@ -106,6 +107,7 @@ def test_game_engine_assert_code_rejects_non_int_element_bool(engine):
 
 @pytest.mark.parametrize("invalid_color", [0, CodeConstants.NUMBER_OF_COLORS.value + 1])
 def test_game_engine_assert_code_legal_invalid_color_values(engine, invalid_color):
+    """Color values just outside the valid range raise a ValueError."""
     invalid_code_list = [1, 2, invalid_color, 4, 5]
     with pytest.raises(ValueError, match="invalid color"):
         engine._assert_code_legal(invalid_code_list)
@@ -199,6 +201,7 @@ def test_game_engine_run_player_wins_first_round(engine):
 
 
 def test_game_engine_run_player_loses_from_attempts(engine):
+    """The game is lost when the maximum number of attempts is reached."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -215,6 +218,7 @@ def test_game_engine_run_player_loses_from_attempts(engine):
 
 
 def test_game_engine_run_player_invalid_secret_code(engine):
+    """An invalid secret code aborts the run before asking for a guess."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -227,6 +231,7 @@ def test_game_engine_run_player_invalid_secret_code(engine):
 
 
 def test_game_engine_run_player_invalid_guess(engine):
+    """An invalid guess aborts the run before feedback is requested."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -240,6 +245,7 @@ def test_game_engine_run_player_invalid_guess(engine):
 
 
 def test_game_engine_run_player_invalid_feedback(engine):
+    """Invalid feedback from the codemaker aborts the run with a ValueError."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -252,6 +258,7 @@ def test_game_engine_run_player_invalid_feedback(engine):
 
 
 def test_run_after_resume_uses_existing_secret_and_previous_board(engine):
+    """A resumed game reuses its secret and passes previous attempts as board."""
     game_data = {
         "secret_code": [1, 2, 3, 4, 5],
         "attempt_list": [
@@ -282,6 +289,7 @@ def test_run_after_resume_uses_existing_secret_and_previous_board(engine):
 
 
 def test_run_sets_game_state_interrupted_when_interrupt_requested(engine):
+    """An interrupt requested during the loop marks the game as interrupted."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -301,6 +309,7 @@ def test_run_sets_game_state_interrupted_when_interrupt_requested(engine):
 
 
 def test_run_network_game_does_not_store_secret_code(default_config):
+    """Network games validate but do not store the secret code locally."""
     default_config.network_enabled = True
     engine = GameEngine(game_config=default_config)
     codemaker_mock = MagicMock()
@@ -317,6 +326,7 @@ def test_run_network_game_does_not_store_secret_code(default_config):
 
 
 def test_run_win_converts_provisional_feedback_to_final_feedback(default_config):
+    """A Blind Trial win converts all provisional feedback to final feedback."""
     default_config.gamemode = Gamemode.BLIND_TRIAL
     engine = GameEngine(game_config=default_config)
     codemaker_mock = MagicMock()
@@ -336,6 +346,7 @@ def test_run_win_converts_provisional_feedback_to_final_feedback(default_config)
 
 
 def test_run_lost_to_attempts_converts_provisional_feedback_to_final_feedback(default_config):
+    """A Blind Trial attempt loss converts all provisional feedback to final feedback."""
     default_config.gamemode = Gamemode.BLIND_TRIAL
     engine = GameEngine(game_config=default_config)
     codemaker_mock = MagicMock()
@@ -390,6 +401,7 @@ def test_run_records_empty_feedback_from_port_as_zero_pins(engine):
 
 
 def test_interrupt_game_sets_shutdown_requested(engine):
+    """interrupt_game sets the shutdown flag used by the run loop."""
     engine.interrupt_game()
 
     assert engine.shutdown_requested is True
@@ -399,6 +411,7 @@ def test_interrupt_game_sets_shutdown_requested(engine):
 
 
 def test_get_game_obj_happy_path(engine):
+    """get_game_obj returns the game object created by run."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -412,6 +425,7 @@ def test_get_game_obj_happy_path(engine):
 
 
 def test_get_game_obj_before_start_return_none(engine):
+    """get_game_obj returns None before a game has been started or resumed."""
     assert engine.get_game_obj() is None
 
 
@@ -419,6 +433,7 @@ def test_get_game_obj_before_start_return_none(engine):
 
 
 def test_board_for_codebreaker_happy_path(engine):
+    """The board for the codebreaker contains previous final guesses and feedback."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -434,6 +449,7 @@ def test_board_for_codebreaker_happy_path(engine):
 
 
 def test_board_for_codebreaker_provisional_as_white_pins(default_config):
+    """Provisional feedback is hidden from the codebreaker as white pins only."""
     default_config.gamemode = Gamemode.BLIND_TRIAL
     engine = GameEngine(game_config=default_config)
     codemaker_mock = MagicMock()
@@ -451,6 +467,7 @@ def test_board_for_codebreaker_provisional_as_white_pins(default_config):
 
 
 def test_board_for_codebreaker_empty_list(engine):
+    """An empty attempt history is exposed as an empty board."""
     engine.game = Game(game_mode=Gamemode.CLASSIC, code_length=CodeConstants.NUMBER_OF_PINS)
 
     assert engine._board_for_codebreaker() == []
@@ -460,6 +477,7 @@ def test_board_for_codebreaker_empty_list(engine):
 
 
 def test_create_game_persist_object_happy_path(engine, default_config):
+    """A completed game is converted into the expected persistence shape."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -498,6 +516,7 @@ def test_create_game_persist_object_happy_path(engine, default_config):
 
 
 def test_create_game_persist_object_happy_path_multiple_attempts(engine):
+    """The persistence object includes all attempts in order."""
     codemaker_mock = MagicMock()
     codebreaker_mock = MagicMock()
 
@@ -530,6 +549,7 @@ def test_create_game_persist_object_happy_path_multiple_attempts(engine):
 
 
 def test_create_game_persist_object_save_provisional_feedback(default_config):
+    """The persistence object preserves provisional Blind Trial feedback."""
     default_config.gamemode = Gamemode.BLIND_TRIAL
     engine = GameEngine(game_config=default_config)
     codemaker_mock = MagicMock()
@@ -561,6 +581,7 @@ def test_create_game_persist_object_save_provisional_feedback(default_config):
 
 
 def test_create_game_persist_object_before_run_raises_error(engine):
+    """Creating a persistence object before a game exists raises an AttributeError."""
     with pytest.raises(AttributeError):
         engine.create_game_persist_object()
 
@@ -569,6 +590,7 @@ def test_create_game_persist_object_before_run_raises_error(engine):
 
 
 def test_resume_happy_path(engine):
+    """resume rebuilds an interrupted game with secret code and attempts."""
     game_data = {
         "secret_code": [1, 2, 3, 4, 5],
         "attempt_list": [
@@ -599,6 +621,7 @@ def test_resume_happy_path(engine):
 
 
 def test_resume_invalid_secret_code(engine):
+    """resume rejects persisted data with an invalid secret code."""
     game_data = {
         "secret_code": [1, 2, 3, 4],
         "attempt_list": [],
@@ -609,6 +632,7 @@ def test_resume_invalid_secret_code(engine):
 
 
 def test_resume_invalid_guess_in_attempt_list(engine):
+    """resume rejects persisted attempts with an invalid guess."""
     game_data = {
         "secret_code": [1, 2, 3, 4, 5],
         "attempt_list": [
@@ -628,6 +652,7 @@ def test_resume_invalid_guess_in_attempt_list(engine):
 
 
 def test_resume_network_game_dont_set_secret_code(default_config):
+    """resume restores network games without storing the secret code locally."""
     default_config.network_enabled = True
     engine = GameEngine(game_config=default_config)
     game_data = {
@@ -653,6 +678,7 @@ def test_resume_network_game_dont_set_secret_code(default_config):
 
 
 def test_resume_load_provisional_feedback(engine):
+    """resume restores provisional feedback status from persisted data."""
     game_data = {
         "secret_code": [1, 2, 3, 4, 5],
         "attempt_list": [
