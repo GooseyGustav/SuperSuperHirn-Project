@@ -36,13 +36,18 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         """Initiate the network handshake to receive a valid gameid.
 
         Raises:
-            ValueError: If the server response lacks a valid non-zero gameid,
-                        or if the server forces an unsupported game configuration.
+            ValueError: If the server response lacks a valid non-zero gameid or
+                        if the server forces an unsupported game configuration.
+            ConnectionError: If there is a connection/HTTP failure.
         """
         payload = self._build_base_payload()
         payload["value"] = ""
 
-        response = self.network_manager.post_json(payload)
+        try:
+            response = self.network_manager.post_json(payload)
+        except requests.RequestException as e:
+            # propagates to GameManager._configure_and_run()
+            raise ConnectionError(f"Could not connect to remote player: {e}") from e
 
         # check game id validity
         returned_gameid = response.get("gameid", 0)
@@ -87,6 +92,11 @@ class NetworkCodemaker(ForGettingCodemakerMove):
 
         Returns:
             list[int]: The server's feedback as a list of integers (e.g., [8, 8, 7]).
+
+        Raises:
+            ConnectionError: If there is a persistent connection/HTTP failure after
+            MAX_RESEND_ATTEMPTS.
+            ValueError: If the server persistently sends a malformed or invalid feedback string.
         """
         # Convert guess list to string (e.g., [1, 2, 4, 3] -> "1243")
         guess_string = "".join(str(pin) for pin in guess)
@@ -98,12 +108,16 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         last_error = None
         for attempt in range(self.MAX_RESEND_ATTEMPTS):
             try:
-                response = self.network_manager.post_json(payload)
-                return self._parse_feedback(response)
+                response = self.network_manager.post_json(payload)  # raises ValueError or requests exception
+                return self._parse_feedback(response)  # raises ValueError if bad feedback
             except (ValueError, requests.RequestException) as e:
                 last_error = e
                 logging.warning("Bad feedback message: %s", e)
                 time.sleep(self.RETRY_PAUSE_SECONDS)
+        if isinstance(last_error, requests.RequestException):
+            raise ConnectionError(
+                f"No connection after {self.MAX_RESEND_ATTEMPTS} attempts: {last_error}"
+            ) from last_error
         raise ValueError(f"No valid feedback after {self.MAX_RESEND_ATTEMPTS} attempts ({last_error}).")
 
     def _build_base_payload(self) -> dict:
