@@ -9,6 +9,8 @@ class HomeController:
         MainWindow.instance().register_view("home", self.home_view)
         MainWindow.instance().navigate_to("home")
 
+        self.ui_service_adapter = MainWindow.instance().ui_service_adapter
+
         self._connect_events()
 
     def _connect_events(self):
@@ -20,11 +22,13 @@ class HomeController:
     def _new_game(self):
         from gui.controllers.game_ui_controller import GameController
 
+        self.ui_service_adapter.on_start_game()
         self.game_ctrl = GameController()
 
     def _continue_game(self):
         from gui.controllers.game_ui_controller import GameController
 
+        self.ui_service_adapter.on_start_network_game("123.123.123.123", "1")
         self.game_ctrl = GameController()
 
     def _go_to_settings(self):

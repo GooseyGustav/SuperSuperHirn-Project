@@ -15,3 +15,24 @@ class UiGameConfigAndAdminAdapter():
 
     def on_reset_config(self) -> None:
         self.for_configuring_game.reset_config()
+    
+    def on_start_game(self) -> None:
+        self.for_game_administration.start_game()
+
+    def on_start_game_delete_interrupted(self) -> None:
+        self.for_game_administration.start_game_delete_interrupted()
+
+    def on_resume_interrupted(self) -> None:
+        pass
+
+    def on_interrupt_game(self) -> None:
+        pass
+
+    def on_abort_game(self) -> None:
+        pass
+
+    def on_exit_application(self) -> None:
+        pass
+
+    def on_start_network_game(self, ip_adress: str, gamer_id: int) -> None:
+        self.for_game_administration.start_network_game(ip_adress, gamer_id)
