@@ -128,6 +128,3 @@ local_files/
 
 # Local Persistency data
 **/file_tool/*.json
-
-# local docs
-docs/
