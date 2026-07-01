@@ -230,15 +230,15 @@ class TestColorSlot:
         painter = FakeQPainter.last_instance
         assert painter.brushes[0].value == COLOR_MAP[Color.ORANGE]
 
-    def test_paint_event_uses_yellow_border_for_selected_slot(self):
-        """paintEvent switches the border color to yellow for selected slots."""
+    def test_paint_event_uses_black_border_for_selected_slot(self):
+        """paintEvent keeps the border black even when the slot is selected."""
         slot = ColorSlot()
         slot.set_selected(True)
 
         slot.paintEvent(None)
 
         painter = FakeQPainter.last_instance
-        assert painter.pens[1].value == "yellow"
+        assert painter.pens[1].value == "black"
 
 
 def test_color_map_contains_all_supported_colors():

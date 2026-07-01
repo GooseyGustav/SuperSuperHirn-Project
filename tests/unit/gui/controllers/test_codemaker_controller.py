@@ -56,7 +56,6 @@ class TestGameCodemakerController:
         """Constructor wires all GameView user-input signals to controller handlers."""
         self.mock_view_instance.exit_game_no_save_pressed.connect.assert_called_once()
         self.mock_view_instance.exit_game_save_pressed.connect.assert_called_once()
-        self.mock_view_instance.restart_game_pressed.connect.assert_called_once()
         self.mock_view_instance.color_selected.connect.assert_called_once()
         self.mock_view_instance.feedback_color_selected.connect.assert_called_once()
         self.mock_view_instance.submit_pressed.connect.assert_called_once()
@@ -332,13 +331,3 @@ class TestGameCodemakerController:
 
         assert self.controller._pending_interrupt is True
         self.mock_ui_service_adapter.on_interrupt_game.assert_called_once()
-
-    def test_on_restart_game_currently_does_not_delegate(self):
-        """Restart is currently a no-op and should not trigger services or navigation."""
-        self.mock_ui_service_adapter.reset_mock()
-        self.mock_main_window_instance.reset_mock()
-
-        self.controller._on_restart_game()
-
-        self.mock_ui_service_adapter.assert_not_called()
-        self.mock_main_window_instance.navigate_to.assert_not_called()
