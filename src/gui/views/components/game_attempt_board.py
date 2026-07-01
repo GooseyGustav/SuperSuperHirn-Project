@@ -110,7 +110,7 @@ class GuessWidget(QWidget):
 
     def reset(self):
         for slot in self.slots:
-            slot.reset()
+            slot.reset_color()
 
     def set_slot(self, index: int, color: Color):
         self.slots[index].set_color(color)
