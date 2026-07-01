@@ -7,20 +7,60 @@ NUM_ROWS  = 10
 NUM_SLOTS = 5
 
 
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtCore import Qt
+
 class FeedbackPeg(QWidget):
+    BLACK = 1
+    WHITE = 2
+    EMPTY = 0
+
     def __init__(self):
         super().__init__()
         self.setFixedSize(14, 14)
-        self.reset()
+        self.state = self.EMPTY
 
     def set_black(self):
-        self.setStyleSheet("background: #111; border-radius: 7px;")
+        self.state = self.BLACK
+        self.update()
 
     def set_white(self):
-        self.setStyleSheet("background: white; border: 1px solid #aaa; border-radius: 7px;")
+        self.state = self.WHITE
+        self.update()
 
     def reset(self):
-        self.setStyleSheet("background: #ccc; border-radius: 7px;")
+        self.state = self.EMPTY
+        self.update()
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = self.rect()
+
+        if self.state == self.BLACK:
+            fill = QColor("#111")
+            border = None
+
+        elif self.state == self.WHITE:
+            fill = QColor("white")
+            border = QColor("#aaa")
+
+        else:
+            fill = QColor("#ccc")
+            border = None
+
+        # Fill circle
+        painter.setBrush(fill)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(rect)
+
+        # Optional border (only for white pegs)
+        if border:
+            painter.setPen(border)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(rect.adjusted(1, 1, -1, -1))
 
 
 class FeedbackWidget(QWidget):
@@ -74,6 +114,13 @@ class GuessWidget(QWidget):
         for slot in self.slots:
             slot.reset()
 
+    def set_slot(self, index: int, color: Color):
+        self.slots[index].set_color(color)
+    
+    def set_active_slot(self, index: int):
+        for i, slot in enumerate(self.slots):
+            slot.set_selected(i == index)
+
 
 class AttemptRow(QWidget):
     def __init__(self):
@@ -96,6 +143,9 @@ class AttemptRow(QWidget):
         # Right: feedback pegs
         self.feedback = FeedbackWidget()
         layout.addWidget(self.feedback, stretch=1)
+    
+    def set_slot_selected(self, index: int):
+        self.guess.set_active_slot(index)
 
     def set_guess(self, colors: list[Color]):
         self.guess.set_guess(colors)
@@ -107,10 +157,14 @@ class AttemptRow(QWidget):
         self.guess.reset()
         self.feedback.reset()
 
+    def set_slot(self, index: int, color: Color):
+        self.guess.set_slot(index, color)
+
 
 class AttemptsBoard(QWidget):
     def __init__(self):
         super().__init__()
+        self.current_row = 0
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
@@ -130,3 +184,12 @@ class AttemptsBoard(QWidget):
     def reset(self):
         for row in self.rows:
             row.reset()
+
+    def set_guess_slot(self, row_index: int, col, color):
+        self.rows[row_index].set_slot(col, color)
+
+    def set_feedback_slots(self, row_index: int, white, black):
+        self.rows[row_index].set_feedback(black, white)
+
+    def set_active_slot(self, row_index: int, slot_index):
+        self.rows[row_index].set_slot_selected(slot_index)
