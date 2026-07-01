@@ -27,14 +27,28 @@ class ForConfiguringGame(ABC):
             }
 
             Core App validates the config before saving it.
+
+        Raises:
+            ValueError: config invalid (fails validation before saving).
+            OSError: could not write the config file.
         """
 
     @abstractmethod
     def load_config(self) -> dict:
         """Loads a game configuration and returns it as a dictionary.
         (same shape as `save_config()` accepts).
+
+        Raises:
+            ValueError: stored config present but invalid.
+
+        Note:
+            Missing or corrupt saved file does not raise. Instead, adapter
+            returns default config.
         """
 
     @abstractmethod
     def reset_config(self) -> None:
-        """Resets the game configuration to the default values."""
+        """Resets the game configuration to the default values.
+
+        Raises:
+            OSError: could not write the default config."""
