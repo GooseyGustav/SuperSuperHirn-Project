@@ -164,6 +164,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         # make sure the "real" live bool ist active (not old saved config)
         config_dict["network_enabled"] = self._network_enabled
+        if self._network_enabled:
+            config_dict["user_role"] = self._user_role.value if hasattr(self._user_role, "value") else self._user_role
 
         # recheck
         self._validate_config(config_dict)
@@ -189,9 +191,6 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             codemaker, codebreaker = self._assembling_players_port.assemble_players(
                 players_config_for_players_assembling_port
             )
-            if self._network_enabled and getattr(self, "_user_role", None) == "OBSERVER":
-                print("Observer mode active: Switching to CPU Codebreaker.")
-                codebreaker = self._cpu_codebreaker_adapter
         except (ValueError, TypeError, ConnectionError) as e:
             logging.warning("Error assembling players: %s", e)
             self._game_engine = None
@@ -300,16 +299,18 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """
         # enum fields are validated by the enum itself with simple instantiation attempts
         Gamemode(config["gamemode"])  # ValueError if not a valid Gamemode
-        user_role = Role(config["user_role"])  # ValueError if not a valid Role
+        user_role = Role(config["user_role"])
         network_enabled = config["network_enabled"]
 
         # bool check
-        if not isinstance(config["network_enabled"], bool):
+        if not isinstance(network_enabled, bool):
             raise ValueError("network_enabled must be a boolean")
 
-        # check network only with user_role = codebreaker
-        if network_enabled and user_role is not Role.CODEBREAKER:
-            raise ValueError("network_enabled is only valid with user_role set to codebreaker")
+        # check network only with user_role = codebreaker or observer
+        if config["network_enabled"]:
+            role = Role(user_role)
+            if role not in [Role.CODEBREAKER, Role.OBSERVER]:
+                raise ValueError("network_enabled is only valid with user_role set to CODEBREAKER or OBSERVER")
 
         # non-negative int check for time
         for key in ("countdown_millis", "delay_millis"):

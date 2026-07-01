@@ -176,9 +176,17 @@ def test_validate_config_rejects_invalid(valid_config_dict, field, invalid_value
         GameManager._validate_config(invalid)
 
 
-def test_validate_config_network_requires_user_role_codebreaker(valid_config_dict):
+def test_validate_config_network_allows_codebreaker_and_observer(valid_config_dict):
+    valid_cb = {**valid_config_dict, "network_enabled": True, "user_role": "CODEBREAKER"}
+    GameManager._validate_config(valid_cb)
+
+    valid_obs = {**valid_config_dict, "network_enabled": True, "user_role": "OBSERVER"}
+    GameManager._validate_config(valid_obs)
+
+
+def test_validate_config_network_forbids_codemaker(valid_config_dict):
     invalid = {**valid_config_dict, "network_enabled": True, "user_role": "CODEMAKER"}
-    with pytest.raises(ValueError, match="codebreaker"):
+    with pytest.raises(ValueError, match="only valid with user_role set to CODEBREAKER or OBSERVER"):
         GameManager._validate_config(invalid)
 
 

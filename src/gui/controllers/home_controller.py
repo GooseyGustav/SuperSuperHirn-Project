@@ -17,6 +17,8 @@ class HomeController:
 
         self._connect_events()
 
+        self.home_view.btn_game_continue.setEnabled(False)
+
     def _connect_events(self):
         self.home_view.game_continue_requested.connect(self._continue_game)
         self.home_view.game_new_requested.connect(self._new_game)
@@ -47,6 +49,8 @@ class HomeController:
 
             case _:
                 raise ValueError(f"Unknown user_role: {role}")
+
+        self.home_view.btn_game_continue.setEnabled(True)
 
     def _continue_game(self):
         from gui.controllers.game_ui_controller import GameController
@@ -110,6 +114,12 @@ class HomeController:
 
         # once the player_adapter is no longer None, the core has finished its setup
         if MainWindow.instance().player_adapter is not None:
+
+            role = self.ui_service_adapter.on_load_config().get("user_role")
+            if role == "OBSERVER":
+                print("Observer role detected. Starting observer game in background.")
+            else:
+                self.game_ctrl = GameController(is_network=True)
 
             # stop the timer immediately so it does not trigger again
             self.ready_timer.stop()
