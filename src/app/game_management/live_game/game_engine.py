@@ -116,7 +116,6 @@ class GameEngine:
             # Per-move clock: reset + start immediately before get_guess.
             # get_feedback is intentionally outside the timed window.
             if is_time_trial:
-                self.clock.reset()
                 self.clock.start()
 
             try:
@@ -265,11 +264,6 @@ class GameEngine:
             fb = attempt_row["feedback"]
             feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
             self.game.attempt_list.append(Attempt(guess_object, feedback_object))
-
-        # Arm a fresh per-move clock; the saved remaining_time_millis is ignored
-        # because per-move semantics discard any partial time on interrupt.
-        if self.game_config.gamemode == Gamemode.TIME_TRIAL:
-            self.clock = Clock(self.game_config.countdown_millis)
 
     def get_game_obj(self) -> Game | None:
         """Returns the current game object."""
