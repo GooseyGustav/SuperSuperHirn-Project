@@ -83,23 +83,46 @@ class HomeController:
         self.network_view.cancel_requested.connect(lambda: MainWindow.instance().navigate_to("home"))
         self.network_view.start_requested.connect(self._start_network_game)
 
+    # ---------- Config & Timer Methods ----------
+
     def _start_network_game(self, address: str, gamer_id: str) -> None:
-        """Start the network game and handle potential connection errors."""
+        """
+        Starts the network game and waits for the background thread to be ready.
+
+        Args:
+            address (str): The network address to connect to.
+            gamer_id (str): The identifier for the local player.
+        """
+        from PyQt6.QtCore import QTimer
         from PyQt6.QtWidgets import QMessageBox
 
-        from gui.controllers.game_ui_controller import GameController
-
         try:
-            # pass the data to the adapter (and thus to the GameManager)
+            print("DEBUG: Calling adapter (Backend is connecting in the background...)")
             self.ui_service_adapter.on_start_network_game(address, gamer_id)
 
-            # if no errors occur, initialize the GameController to start the game view
-            self.game_ctrl = GameController()
+            # Start a QTimer to check every 100 milliseconds if the core is ready.
+            self.ready_timer = QTimer()
+            self.ready_timer.timeout.connect(self._check_if_core_is_ready)
+            self.ready_timer.start(100)
 
-        except (ConnectionError, ValueError) as e:
-            # catch exceptions from the GameManager or NetworkCodemaker
+        except Exception as e:
+            print(f"DEBUG CAUGHT EXCEPTION: {e}")
             QMessageBox.critical(
                 self.network_view,
                 "Connection Error",
                 f"The network game could not be started:\n\n{e}",
             )
+
+    def _check_if_core_is_ready(self) -> None:
+        """Called every 100ms until the core has initialized the player_adapter."""
+        from gui.controllers.game_ui_controller import GameController
+
+        # Once the player_adapter is no longer None, the core has finished its setup.
+        if MainWindow.instance().player_adapter is not None:
+
+            # Stop the timer immediately so it does not trigger again.
+            self.ready_timer.stop()
+            print("DEBUG: Core is ready! Adapter found. Loading the game board now...")
+
+            # Safely instantiate the GameController now that dependencies exist.
+            self.game_ctrl = GameController(is_network=True)
