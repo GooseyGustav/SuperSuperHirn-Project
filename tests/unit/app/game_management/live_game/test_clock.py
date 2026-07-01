@@ -20,7 +20,7 @@ class FakeNow:
 
 
 def test_clock_reset_restores_full_budget():
-    """reset() sets remaining_time_millis back to max_time_millis."""
+    """reset() sets remaining_millis return the full time budget again."""
     fake = FakeNow()
     clock = Clock(max_time_millis=5000, now=fake)
 
@@ -28,7 +28,7 @@ def test_clock_reset_restores_full_budget():
     fake.advance(2000)
     clock.reset()
 
-    assert clock.remaining_time_millis == 5000
+    assert clock.remaining_millis() == 5000
 
 
 def test_clock_reset_clears_deadline():
@@ -135,3 +135,18 @@ def test_clock_reset_isolates_moves():
 
     assert not clock.is_expired()
     assert clock.remaining_millis() > 0
+
+
+# ---------- Clock: constructor doesn't allow time_limits <= 0  ----------
+
+
+def test_clock_rejects_negative_time_limit():
+    """Clock rejects negative time budgets."""
+    with pytest.raises(ValueError, match="bigger than 0"):
+        Clock(max_time_millis=-1)
+
+
+def test_clock_rejects_zero_time_limit():
+    """Clock rejects a zero time budget."""
+    with pytest.raises(ValueError, match="bigger than 0"):
+        Clock(max_time_millis=0)
