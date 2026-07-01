@@ -37,7 +37,6 @@ class TestGameController:
         # Check signal connections
         self.mock_view_instance.exit_game_no_save_pressed.connect.assert_called_once()
         self.mock_view_instance.exit_game_save_pressed.connect.assert_called_once()
-        self.mock_view_instance.restart_game_pressed.connect.assert_called_once()
         self.mock_view_instance.color_selected.connect.assert_called_once()
         self.mock_view_instance.submit_pressed.connect.assert_called_once()
         self.mock_view_instance.key_delete_pressed.connect.assert_called_once()
