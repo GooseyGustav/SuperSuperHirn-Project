@@ -115,6 +115,7 @@ class GameController:
 
     def _on_exit_game_save(self):
         self.ui_service_adapter.on_interrupt_game()
+        MainWindow.instance().navigate_to("home")
 
     def _on_game_interrupted(self):
         MainWindow.instance().navigate_to("home")
