@@ -48,16 +48,17 @@ class GameView(QWidget):
         self.margin_layout.setSpacing(8)
 
         self.ui_admin_stuff = QWidget()
-        if self.player_mode in ("secret", "feedback"):
+        if self.player_mode in ("secret", "feedback", "observer"):
             self.secret_code = QWidget()
         self.attempts_board = QWidget()
         self.color_picker = QWidget()
 
         self.margin_layout.addWidget(self.ui_admin_stuff, 10)
-        if self.player_mode in ("secret", "feedback"):
+        if self.player_mode in ("secret", "feedback", "observer"):
             self.margin_layout.addWidget(self.secret_code, 10)
         self.margin_layout.addWidget(self.attempts_board, 70)
-        self.margin_layout.addWidget(self.color_picker, 10)
+        if self.player_mode in ("secret", "feedback", "guess"):
+            self.margin_layout.addWidget(self.color_picker, 10)
 
         outer_layout.addWidget(self.margin_widget)
 
@@ -85,12 +86,9 @@ class GameView(QWidget):
         self._btn_save_exit = QPushButton("SaveExit")
         self._btn_save_exit.clicked.connect(self.exit_game_save_pressed.emit)
 
-        self._btn_restart = QPushButton("Restart")
-        self._btn_restart.clicked.connect(self.restart_game_pressed.emit)
-
         left_layout.addWidget(btn_no_save_exit)
-        left_layout.addWidget(self._btn_save_exit)
-        left_layout.addWidget(self._btn_restart)
+        if self.player_mode != "observer":
+            left_layout.addWidget(self._btn_save_exit)
 
         # Empty space to the right of the buttons
         left_layout.addStretch()
@@ -216,7 +214,7 @@ class GameView(QWidget):
 
     def set_network_mode(self, is_network: bool) -> None:
         """
-        Hide invalid buttons (Save & Exit, Restart) when a network game is active.
+        Hide invalid buttons (Save & Exit) when a network game is active.
 
         Args:
             is_network (bool): True if the current game is a network game.

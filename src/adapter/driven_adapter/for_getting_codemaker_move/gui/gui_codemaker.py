@@ -20,7 +20,6 @@ class GuiCodemaker(ForGettingCodemakerMove):
         self._wait.wait(self._mutex)  # schläft bis submit_guess()
         result = list(self._secret_code)
         self._mutex.unlock()
-        print(f"secret code is being sent to core: {self._secret_code}")
         return result
 
     def submit_secret_code(self, secret_code: list[int]):  # GameController ruft das auf

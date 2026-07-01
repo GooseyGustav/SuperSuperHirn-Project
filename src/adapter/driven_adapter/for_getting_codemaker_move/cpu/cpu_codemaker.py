@@ -1,5 +1,7 @@
 import random
 
+from PyQt6.QtCore import QObject, pyqtSignal
+
 from app.ports.driven.for_getting_moves.for_getting_codemaker_move import ForGettingCodemakerMove
 
 
@@ -29,6 +31,9 @@ class CpuCodemaker(ForGettingCodemakerMove):
     BLACK_PEG = 8
     WHITE_PEG = 7
 
+    def __init__(self):
+        self.emitter = CpuCodemakerEmitter()
+
     def get_secret_code(self) -> list[int]:
         """
         Generates a secret code for a new game.
@@ -40,7 +45,9 @@ class CpuCodemaker(ForGettingCodemakerMove):
             list[int]: A list of exactly 5 integers, each in the range 1-8 representing the hidden color sequence.
         """
 
-        return [random.randint(self.MIN_COLOR, self.MAX_COLOR) for _ in range(self.CODE_LENGTH)]
+        secret_code = [random.randint(self.MIN_COLOR, self.MAX_COLOR) for _ in range(self.CODE_LENGTH)]
+        self.emitter.secret_submitted.emit(secret_code)
+        return secret_code
 
     def get_feedback(self, secret: list[int], guess: list[int]) -> list[int]:
         """
@@ -84,4 +91,13 @@ class CpuCodemaker(ForGettingCodemakerMove):
                 secret_counts[g] -= 1
 
         feedback = [self.BLACK_PEG] * black_pegs + [self.WHITE_PEG] * white_pegs
+        self.emitter.feedback_submitted.emit(feedback)
         return feedback
+
+
+class CpuCodemakerEmitter(QObject):
+    secret_submitted = pyqtSignal(list)
+    feedback_submitted = pyqtSignal(list)
+
+    def __init__(self):
+        super().__init__()

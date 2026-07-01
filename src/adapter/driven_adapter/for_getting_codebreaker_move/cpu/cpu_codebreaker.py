@@ -1,6 +1,8 @@
 import itertools
 import random
 
+from PyQt6.QtCore import QObject, pyqtSignal
+
 from app.ports.driven.for_getting_moves.for_getting_codebreaker_move import ForGettingCodebreakerMove
 
 # Alias
@@ -42,6 +44,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
             itertools.product(range(1, CpuCodebreaker.NUM_COLORS + 1), repeat=CpuCodebreaker.CODE_LENGTH)
         )
         self._remaining_candidates = self._all_codes.copy()
+        self.emitter = CpuCodebreakerEmitter()
 
     def get_guess(self, attempt_list: list[Attempt]) -> list[int]:
         """
@@ -56,20 +59,26 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         """
 
         if not self.is_attemptList_valid(attempt_list):
-            return list(self._select_minimax_guess(self._remaining_candidates))
+            guess = list(self._select_minimax_guess(self._remaining_candidates))
+            self.emitter.guess_submitted.emit(guess)
+            return guess
 
         if not attempt_list:
-            return list(self._OPENING_GUESS)
+            guess = list(self._OPENING_GUESS)
+            self.emitter.guess_submitted.emit(guess)
+            return guess
 
         candidates = self._calc_candidates(attempt_list)
 
         # If only one canditate remains, the secret code has been found.
         if len(candidates) == 1:
-            return list(candidates[0])
+            guess = list(candidates[0])
+            self.emitter.guess_submitted.emit(guess)
 
         # Choose best information-gathering guess
-        next_guess = self._select_minimax_guess(candidates)
-        return list(next_guess)
+        guess = self._select_minimax_guess(candidates)
+        self.emitter.guess_submitted.emit(list(guess))
+        return list(guess)
 
     # ---------- Candidate filtering ----------
 
@@ -277,3 +286,10 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
                 best_guess = guess
 
         return best_guess
+
+
+class CpuCodebreakerEmitter(QObject):
+    guess_submitted = pyqtSignal(list)
+
+    def __init__(self):
+        super().__init__()

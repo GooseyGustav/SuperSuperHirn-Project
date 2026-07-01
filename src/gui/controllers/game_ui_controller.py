@@ -28,7 +28,6 @@ class GameController:
     def _connect_events(self):
         self.game_view.exit_game_no_save_pressed.connect(self._on_game_aborted)
         self.game_view.exit_game_save_pressed.connect(self._on_exit_game_save)
-        self.game_view.restart_game_pressed.connect(self._on_restart_game)
 
         self.game_view.color_selected.connect(self._handle_color)
         self.game_view.submit_pressed.connect(self._on_submit)
@@ -42,7 +41,6 @@ class GameController:
 
     def _on_guess_requested(self, attempt_list):
         """Core is waiting for a guess — update the board and arm the submit button."""
-        print(f"Guess requested with history: {attempt_list}")
         self._update_board(attempt_list)
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
         self.guess_list = []  # clear previous guess
@@ -86,8 +84,6 @@ class GameController:
     def _on_submit(self) -> None:
         """Handles the submission of a completed guess to the core."""
         if len(self.guess_list) == 5:
-            print(f"Submitted guess: {self.guess_list}")
-
             if getattr(self, "is_time_trial", False):
                 self.game_view.stop_timer()
 
@@ -179,4 +175,3 @@ class GameController:
 
     def _on_restart_game(self):
         self._stop_timer_safely()
-        print("Restart game requested")
