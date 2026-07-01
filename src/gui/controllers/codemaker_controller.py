@@ -14,6 +14,7 @@ class GameCodemakerController():
         self.slot_index = 0
         self.secret_list = []
         self.feedback_list = []
+        self._pending_interrupt = False
         self.game_view = GameView(self.codemaker_mode)
         self.codemaker: GuiCodemaker = MainWindow.instance().player_adapter.get("codemaker")
         self.ui_service_adapter: UiGameConfigAndAdminAdapter = MainWindow.instance().ui_service_adapter
@@ -160,6 +161,11 @@ class GameCodemakerController():
             if all_black:
                 MainWindow.instance().navigate_to("home")
 
+            if self._pending_interrupt:
+                self._pending_interrupt = False
+                MainWindow.instance().navigate_to("home")
+                return
+
             self.feedback_list = []
             self.round_index += 1
             self.slot_index = 0
@@ -180,10 +186,8 @@ class GameCodemakerController():
         MainWindow.instance().navigate_to("home")
 
     def _on_exit_game_save(self):
+        self._pending_interrupt = True
         self.ui_service_adapter.on_interrupt_game()
-
-    def _on_game_interrupted(self):
-        MainWindow.instance().navigate_to("home")
 
     def _on_restart_game(self):
         print("exec button 3")
