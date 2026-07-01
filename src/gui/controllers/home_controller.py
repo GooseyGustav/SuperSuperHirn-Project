@@ -32,7 +32,6 @@ class HomeController:
         self.ui_service_adapter.on_start_game()
 
         config = self.ui_service_adapter.on_load_config()
-        print(config)
 
         role = config.get("user_role")
 

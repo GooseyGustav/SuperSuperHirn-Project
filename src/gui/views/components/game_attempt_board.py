@@ -183,6 +183,10 @@ class AttemptsBoard(QWidget):
         for row in self.rows:
             row.reset()
 
+    def set_guess(self, row_index: int, colors: list[int]):
+        converted = [Color(c) for c in colors]
+        self.rows[row_index].set_guess(converted)
+
     def set_guess_slot(self, row_index: int, col, color):
         self.rows[row_index].set_slot(col, color)
 

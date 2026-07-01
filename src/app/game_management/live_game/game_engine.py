@@ -1,3 +1,4 @@
+import time
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_management.live_game.clock import Clock
@@ -52,6 +53,8 @@ class GameEngine:
 
         # differentiate between a new game and a resumed game
         if self.game.secret_code is None:
+            if self.game_config.user_role.value == "OBSERVER":
+                time.sleep(self.game_config.delay_millis / 1000)
             secret_code_as_list = codemaker.get_secret_code()
             self._assert_code_legal(secret_code_as_list)
             if not self.game_config.network_enabled:
@@ -71,6 +74,8 @@ class GameEngine:
                 self.clock.start()
 
             try:
+                if self.game_config.user_role.value == "OBSERVER":
+                    time.sleep(self.game_config.delay_millis / 1000)
                 guess_as_list = codebreaker.get_guess(self._board_for_codebreaker())
             except TimeoutInterrupt:
                 # Interactive cutoff: raised by the GUI adapter when the player runs out of time.
@@ -82,9 +87,12 @@ class GameEngine:
                 self.game.game_state = Gamestate.LOST_TIMEOUT
                 break
 
+            # board = attempt history translated to the primitive list of tuples the port wants
             self._assert_code_legal(guess_as_list)
             self.game.set_guess(guess_as_list)
 
+            if self.game_config.user_role.value == "OBSERVER":
+                time.sleep(self.game_config.delay_millis / 1000)
             feedback_pegs = codemaker.get_feedback(secret_code_as_list, guess_as_list)  # int list
             self._assert_feedback_legal(feedback_pegs)
             nr_of_black_pins = feedback_pegs.count(8)

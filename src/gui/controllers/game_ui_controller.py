@@ -24,7 +24,6 @@ class GameController:
     def _connect_events(self):
         self.game_view.exit_game_no_save_pressed.connect(self._on_game_aborted)
         self.game_view.exit_game_save_pressed.connect(self._on_exit_game_save)
-        self.game_view.restart_game_pressed.connect(self._on_restart_game)
 
         self.game_view.color_selected.connect(self._handle_color)
         self.game_view.submit_pressed.connect(self._on_submit)
@@ -35,15 +34,12 @@ class GameController:
 
     def _on_guess_requested(self, attempt_list):
         """Core is waiting for a guess — update the board and arm the submit button."""
-        print(attempt_list)
-        print("exec1")
         self._update_board(attempt_list)
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
         self.guess_list = []  # clear previous guess
         self.game_view.set_submit_enabled(True)  # optionally lock until ready
 
     def _update_board(self, attempt_list):
-        print("exec2")
         for i, (_, feedback, _) in enumerate(attempt_list):
 
             if not feedback:
@@ -52,8 +48,6 @@ class GameController:
             else:
                 black = feedback.count(8)
                 white = feedback.count(7)
-
-            print(white, "white", black, "black")
 
             self.game_view.game_attempt_board.set_feedback_slots(i, white, black)
 
@@ -72,7 +66,6 @@ class GameController:
         Keeps slot_index in range [0, 5].
         """
         self.slot_index = max(0, min(5, self.slot_index + value))
-        print(self.slot_index)
 
     def add_color_guess_list(self, color: Color):
         if len(self.guess_list) < 5:
@@ -80,7 +73,6 @@ class GameController:
 
     def _on_submit(self):
         if len(self.guess_list) == 5:
-            print(self.guess_list)
             self.codebreaker.submit_guess(self.guess_list)  # wakes the Core thread
             self.game_view.set_submit_enabled(False)  # lock until next guess_requested
             self.guess_list = []
@@ -119,6 +111,3 @@ class GameController:
 
     def _on_game_interrupted(self):
         MainWindow.instance().navigate_to("home")
-
-    def _on_restart_game(self):
-        print("exec button 3")

@@ -192,7 +192,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             self._config_manager = None
             return
 
-        self._persist_current_game_if_interrupted()
+        if game_config.user_role.value != "OBSERVER":
+            self._persist_current_game_if_interrupted()
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and

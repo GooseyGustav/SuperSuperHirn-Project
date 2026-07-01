@@ -92,8 +92,7 @@ class Matchmaker(ForAssemblingPlayers):
             case "OBSERVER":
                 cpu_codemaker = CpuCodemaker()
                 cpu_codebreaker = CpuCodebreaker()
-                # self._notify_gui_callback({"codemaker": None,
-                #                            "codebreaker": None})
+                self._notify_gui_callback({"codemaker": cpu_codemaker, "codebreaker": cpu_codebreaker})
                 return cpu_codemaker, cpu_codebreaker
             case _:
                 raise ValueError(f"Unsupported user_role: {user_role}")  # TODO: catch that error
