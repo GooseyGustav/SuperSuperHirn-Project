@@ -467,16 +467,19 @@ def _wire_mockies_and_patchies_with_fixtures(
     assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_run_connection_error_reraised_to_caller_through_driving_port(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     _wire_mockies_and_patchies_with_fixtures(
         game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
     )
@@ -487,16 +490,19 @@ def test_run_connection_error_reraised_to_caller_through_driving_port(
         game_manager.start_network_game("1.2.3.4:8080", "team13")
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_run_illegal_move_value_error_caught_by_game_manager_internally(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     _wire_mockies_and_patchies_with_fixtures(
         game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
     )
@@ -508,16 +514,19 @@ def test_run_illegal_move_value_error_caught_by_game_manager_internally(
     assert game_manager._game_engine is None  # check clean up was done
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_assemble_players_connection_error_reraised_to_caller_through_driving_port(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     persist_config_port_mock.load_config_dict.return_value = config_dict_valid_network_on
     assembling_players_port_mock.assemble_players.side_effect = ConnectionError("unreachable")
     with pytest.raises(ConnectionError):
