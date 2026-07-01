@@ -8,7 +8,7 @@ from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_ad
 class GameController():
 
     def __init__(self):
-        self.game_view = GameView()
+        self.game_view = GameView("guess")
         self.round_index = 0
         self.slot_index = 0
         self.guess_list = []

@@ -15,22 +15,24 @@ class GameView(QWidget):
     # ----- Color Picker -----
     color_selected = pyqtSignal(object)
     submit_pressed = pyqtSignal()
+    feedback_color_selected = pyqtSignal(object)
 
     # ----- Key Events -----
     key_delete_pressed = pyqtSignal()
     key_enter_pressed = pyqtSignal()
     key_move_slot = pyqtSignal(int)
 
-    def __init__(self, parent=None):
+    def __init__(self, mode: str, parent=None):
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
         self.submit_enabled = False
+        self.codemaker_mode: str = mode
         self._setup_layout()
         self._setup_ui_admin_stuff()
         self._setup_secret_code()
         self._setup_attempts_board()
-        self._setup_color_picker()
+        self._setup_color_picker(self.codemaker_mode)
     
     def _setup_layout(self):
         outer_layout = QVBoxLayout(self)
@@ -101,9 +103,24 @@ class GameView(QWidget):
 
     def _setup_secret_code(self):
         self.secret_code.setStyleSheet("background: #E67E22;")
+
         layout = QHBoxLayout(self.secret_code)
-        layout.setContentsMargins(0, 0, 0, 0)
-        # add child widgets here
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(0)
+
+        # Guess slots
+        self.secret_code_widget = GuessWidget()
+        layout.addWidget(self.secret_code_widget, stretch=3)
+
+        # Same spacer as AttemptRow
+        spacer = QWidget()
+        spacer.setFixedWidth(20)
+        layout.addWidget(spacer)
+
+        # Placeholder with same width as FeedbackWidget
+        placeholder = QWidget()
+        placeholder.setFixedWidth(60)   # same as FeedbackWidget
+        layout.addWidget(placeholder, stretch=1)
 
     def _setup_attempts_board(self):
         self.attempts_board.setStyleSheet("""
@@ -115,34 +132,55 @@ class GameView(QWidget):
 
         self.game_attempt_board = AttemptsBoard()
 
-        # layout.addWidget(ColorSlot())
-        # layout.addWidget(FeedbackWidget())
-        # layout.addWidget(GuessWidget())
         layout.addWidget(self.game_attempt_board)
-        # add child widgets here
 
         self.attempts_board.setLayout(layout)
-    
-        print(layout.layout())
-        print(self.attempts_board.layout())
 
-    def _setup_color_picker(self):
+    def _setup_color_picker(self, mode):
         self.color_picker.setStyleSheet("background: #8E44AD;")
-        layout = QHBoxLayout(self.color_picker)
-        
-        layout.setContentsMargins(10, 10, 10, 10)
 
-        for color in Color:
-            button = QPushButton(color.name.capitalize())
-            button.clicked.connect(
-                lambda checked=False, c=color: 
-                    self.color_selected.emit(c),
+        # clear previous widgets
+        layout = self.color_picker.layout()
+        if layout is None:
+            layout = QHBoxLayout(self.color_picker)
+            layout.setContentsMargins(10, 10, 10, 10)
+        else:
+            self._clear_layout(layout)
+
+        if mode in ("secret", "guess"):
+            for color in Color:
+                button = QPushButton(color.name.capitalize())
+
+                button.clicked.connect(
+                    lambda checked=False, c=color:
+                        self.color_selected.emit(c)
+                )
+                layout.addWidget(button)
+
+        elif mode == "feedback":
+            button_white = QPushButton("White")
+            button_white.clicked.connect(
+                lambda: self.color_selected.emit(Color.WHITE)
             )
-            layout.addWidget(button)
+
+            button_black = QPushButton("Black")
+            button_black.clicked.connect(
+                lambda: self.color_selected.emit(Color.BLACK)
+            )
+
+            layout.addWidget(button_white)
+            layout.addWidget(button_black)
         
         submit_btn = QPushButton("Submit") 
         submit_btn.clicked.connect(self.submit_pressed.emit) 
         layout.addWidget(submit_btn)
+    
+    def _clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
     
     def set_submit_enabled(self, value: bool):
         self.submit_enabled = value
