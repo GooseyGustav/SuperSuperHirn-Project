@@ -12,19 +12,7 @@ from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 from app.ports.driven.for_getting_moves.errors import TimeoutInterrupt
-
-
-class FakeNow:
-    """Controllable time source for testing. Advances time without real sleeps."""
-
-    def __init__(self, t: float = 0.0):
-        self.t = t
-
-    def __call__(self) -> float:
-        return self.t
-
-    def advance(self, millis: float) -> None:
-        self.t += millis / 1000
+from tests.unit.app.game_management.live_game.fake_now import FakeNow
 
 
 @pytest.fixture
