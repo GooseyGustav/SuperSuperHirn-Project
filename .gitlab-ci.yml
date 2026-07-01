@@ -12,8 +12,11 @@ cache:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  QT_QPA_PLATFORM: offscreen
 
 before_script:
+  - apt-get update
+  - apt-get install -y libgl1 libglib2.0-0
   - pip install -e .[dev]
 
 flake8:
