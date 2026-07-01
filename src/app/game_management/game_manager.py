@@ -68,6 +68,7 @@ from urllib.parse import urlparse
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
+from app.game_management.thread_executor import ThreadExecutor
 from app.game_model.game_mode import Gamemode
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
@@ -122,6 +123,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_address: str | None = None
         self._gamer_id: str | None = None
 
+        # for threading
+        self.executor = ThreadExecutor()
+
     # ForGameAdministration methods
 
     def start_game(self) -> None:
@@ -137,7 +141,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_enabled = False
         self._network_address = None
         self._gamer_id = None
-        self._configure_and_run()
+        self.executor.run(self._configure_and_run)
 
     def start_network_game(self, network_address: str, gamer_id: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's

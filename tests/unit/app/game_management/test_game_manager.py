@@ -239,6 +239,9 @@ def test_start_game_illegal_move_aborts_without_saving(
     game_manager.start_game()  # should not raise error (abort handled internally)
 
     # Assert
+    import time
+    time.sleep(0.05)
+
     persist_game_port_mock.save_game.assert_not_called()
     assert game_manager._game_engine is None
     assert game_manager._config_manager is None
