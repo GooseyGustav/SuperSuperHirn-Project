@@ -43,6 +43,7 @@ class ConfigController:
     def _save_config(self, payload: dict) -> None:
         """Forward the dict built by the view directly to the adapter."""
         self.adapter.on_save_config(payload)
+        MainWindow.instance().navigate_to("home")
 
     def _reset_config(self) -> None:
         """Reset config via adapter, then reload so widgets reflect the new defaults."""

@@ -86,15 +86,11 @@ class GameView(QWidget):
         left_layout.addWidget(btn_no_save_exit)
         left_layout.addWidget(btn_save_exit)
         left_layout.addWidget(btn_restart)
-
-        # Empty space to the right of the buttons
         left_layout.addStretch()
 
         # Right side
         right_layout = QVBoxLayout()
-
         right_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         right_layout.addWidget(QLabel("Top"))
         right_layout.addWidget(QLabel("Bottom"))
 

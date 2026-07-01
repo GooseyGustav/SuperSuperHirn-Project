@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.game_management.game_manager import GameManager
+from app.game_model.game_state import Gamestate
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
@@ -55,6 +56,36 @@ COUNTDOWN_MILLIS_ZERO = 0
 DELAY_MILLIS_ZERO = 0
 
 
+class _SyncExecutor:
+    """Test double for `game_management.ThreadExecutor` that runs work inline instead of
+    on a thread.
+
+    GameManager.start_game() calls `_configure_and_run()`, whose real `self.executor` is a
+    daemon thread (`ThreadExecutor`) so the GUI is responsive.
+    In tests: race condition where assert runs before thread finishes --> tests fail.
+    Solution: fake executor that runs synchronously. `_SyncExecutor.run(method)` executes
+    `method` synchronously --> state final as soon aas `stat_game()` returns.
+    Real executor swapped for test double by `game_manager` fixture.
+    """
+
+    def run(self, method):
+        method()
+
+
+@pytest.fixture
+def game_manager(persist_config_port_mock, assembling_players_port_mock, persist_game_port_mock):
+    """GameManager fixture with mocks for all driven ports and a synchronous executor.
+
+    Real `ThreadExecutor` runs `start_game()` on a daemon thread. Here: swap `executor`
+    with `_SyncExecutor` so `start_game()` paths always run synchronously --> asserts
+    deterministic, no `sleep` hack needed. Covers all calls that `start_game()` makes
+    (incl. when `restart_game()` and `start_game_delete_interrupted()` call start_game()).
+    """
+    gm = GameManager(persist_config_port_mock, assembling_players_port_mock, persist_game_port_mock)
+    gm.executor = _SyncExecutor()
+    return gm
+
+
 @pytest.fixture
 def persist_config_port_mock():
     return MagicMock(spec=ForPersistingConfig)
@@ -68,11 +99,6 @@ def assembling_players_port_mock():
 @pytest.fixture
 def persist_game_port_mock():
     return MagicMock(spec=ForPersistingGame)
-
-
-@pytest.fixture
-def game_manager(persist_config_port_mock, assembling_players_port_mock, persist_game_port_mock):
-    return GameManager(persist_config_port_mock, assembling_players_port_mock, persist_game_port_mock)
 
 
 @pytest.fixture
@@ -149,40 +175,18 @@ def test_validate_config_rejects_invalid(valid_config_dict, field, invalid_value
         GameManager._validate_config(invalid)
 
 
+def test_validate_config_network_requires_user_role_codebreaker(valid_config_dict):
+    invalid = {**valid_config_dict, "network_enabled": True, "user_role": "CODEMAKER"}
+    with pytest.raises(ValueError, match="codebreaker"):
+        GameManager._validate_config(invalid)
+
+
 # ----- GameManager: reset_config -----
 
 
 def test_reset_config_resets_to_default_delegates(game_manager, persist_config_port_mock):
     game_manager.reset_config()
     persist_config_port_mock.reset_to_default.assert_called_once()
-
-
-# ----- GameManager: interrupt_game -----
-
-
-def test_interrupt_game_delegates(game_manager, persist_game_port_mock):
-    fake_game_engine = MagicMock()
-    fake_game_engine.create_game_persist_object.return_value = {"gamestate": "INTERRUPTED"}
-    game_manager._game_engine = fake_game_engine
-    game_manager.interrupt_game()
-    fake_game_engine.create_game_persist_object.assert_called_once()
-    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": "INTERRUPTED"})
-
-
-@patch("app.game_management.game_manager.GameEngine")
-def test_start_game_delete_interrupted_deletes_then_starts(
-    mock_engine_class,  # prevents using the real GameEngine class
-    game_manager,
-    persist_game_port_mock,
-    persist_config_port_mock,
-    assembling_players_port_mock,
-    valid_config_dict,
-):
-    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
-    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
-    game_manager.start_game_delete_interrupted()
-    persist_game_port_mock.delete_game.assert_called_once()
-    assembling_players_port_mock.assemble_players.assert_called_once()
 
 
 # ----- GameManager: start_game -----
@@ -192,7 +196,7 @@ def test_start_game_delete_interrupted_deletes_then_starts(
 
 
 @patch("app.game_management.game_manager.GameEngine")
-def test_start_game_runs_and_persists(
+def test_start_game_runs_no_errors(
     mock_engine_class,
     game_manager,
     persist_config_port_mock,
@@ -206,15 +210,12 @@ def test_start_game_runs_and_persists(
     codemaker, codebreaker = MagicMock(), MagicMock()
     assembling_players_port_mock.assemble_players.return_value = (codemaker, codebreaker)
     engine = mock_engine_class.return_value
-    engine.create_game_persist_object.return_value = {"gamestate": "WON"}
 
     # Act
     game_manager.start_game()
 
     # Assert
-    engine.run.assert_called_once_with(codemaker, codebreaker)
-    engine.create_game_persist_object.assert_called_once()
-    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": "WON"})
+    engine.run.assert_called_once_with(codemaker, codebreaker)  # no errors
 
 
 @pytest.mark.parametrize("run_error", [ValueError("illegal move"), TypeError("not a list")])
@@ -271,6 +272,131 @@ def test_resume_interrupted_illegal_move_aborts_without_saving(
     # Assert
     persist_game_port_mock.save_game.assert_not_called()
     assert game_manager._game_engine is None
+
+
+# ------- GameManager: abort_game() works correctly  --------
+
+
+def test_abort_game_resets_engine_and_config_manager(game_manager):
+    engine = MagicMock()
+    game_manager._game_engine = engine
+    game_manager._config_manager = MagicMock()
+
+    game_manager.abort_game()
+
+    engine.interrupt_game.assert_called_once()
+    assert game_manager._game_engine is None
+    assert game_manager._config_manager is None
+
+
+# ------- GameManager: restart_game() works correctly  --------
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_restart_game_aborts_then_starts(
+    mock_engine_class, game_manager, persist_config_port_mock, assembling_players_port_mock, valid_config_dict
+):
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+
+    game_manager.restart_game()
+
+    assembling_players_port_mock.assemble_players.assert_called_once()  # start_game() called assembleplayers port
+    mock_engine_class.return_value.run.assert_called_once()
+
+
+# ----- GameManager: interrupt_game -----
+
+
+def test_interrupt_game_delegates(game_manager, persist_game_port_mock):
+    fake_game_engine = MagicMock()
+    fake_game_engine.get_game_obj.return_value.game_state = Gamestate.INTERRUPTED
+    fake_game_engine.create_game_persist_object.return_value = {"gamestate": "INTERRUPTED"}
+    game_manager._game_engine = fake_game_engine
+
+    game_manager.interrupt_game()
+
+    fake_game_engine.create_game_persist_object.assert_called_once()
+    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": "INTERRUPTED"})
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_start_game_delete_interrupted_deletes_then_starts(
+    mock_engine_class,  # prevents using the real GameEngine class
+    game_manager,
+    persist_game_port_mock,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    valid_config_dict,
+):
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    game_manager.start_game_delete_interrupted()
+    persist_game_port_mock.delete_game.assert_called_once()
+    assembling_players_port_mock.assemble_players.assert_called_once()
+
+
+# --- GameManager: game persistence for interrupted game (and only interrupted) ---
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_interrupted_during_run_is_persisted(
+    mock_engine_class,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    codemaker, codebreaker = MagicMock(), MagicMock()
+    assembling_players_port_mock.assemble_players.return_value = (codemaker, codebreaker)
+    engine = mock_engine_class.return_value
+    engine.get_game_obj.return_value.game_state = Gamestate.INTERRUPTED
+    engine.create_game_persist_object.return_value = {"gamestate": Gamestate.INTERRUPTED}
+
+    # Act
+    game_manager.start_game()
+
+    # Assert
+    engine.run.assert_called_once_with(codemaker, codebreaker)
+    engine.create_game_persist_object.assert_called_once()
+    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": Gamestate.INTERRUPTED})
+
+
+@pytest.mark.parametrize("game_state", [Gamestate.WON, Gamestate.LOST_ATTEMPTS, Gamestate.LOST_TIMEOUT])
+@patch("app.game_management.game_manager.GameEngine")
+def test_finished_game_not_persisted(
+    mock_engine_class,
+    game_state,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    engine = mock_engine_class.return_value
+    engine.get_game_obj.return_value.game_state = game_state
+
+    game_manager.start_game()
+    persist_game_port_mock.save_game.assert_not_called()
+
+
+def test_no_active_game_interrupt_game_does_not_persist(game_manager, persist_game_port_mock):
+    game_manager._game_engine = None
+    game_manager.interrupt_game()
+    persist_game_port_mock.save_game.assert_not_called()
+
+
+def test_interrupt_network_game_not_persisted(game_manager, persist_game_port_mock):
+    game_manager._network_enabled = True
+    game_manager._game_engine = MagicMock()
+    game_manager.interrupt_game()
+    persist_game_port_mock.save_game.assert_not_called()
 
 
 # ----- GameManager: _normalize_address -----
@@ -396,3 +522,34 @@ def test_assemble_players_connection_error_reraised_to_caller_through_driving_po
     assembling_players_port_mock.assemble_players.side_effect = ConnectionError("unreachable")
     with pytest.raises(ConnectionError):
         game_manager.start_network_game("1.2.3.4:8080", "team13")
+
+
+# ---- GameManager: exit_application() works correctly ------
+
+
+@pytest.mark.parametrize("game_state", [Gamestate.WON, Gamestate.LOST_ATTEMPTS, Gamestate.LOST_TIMEOUT])
+def test_exit_application_interrupts_and_exits(game_manager, game_state):
+    engine = MagicMock()
+    engine.get_game_obj.return_value.game_state = game_state
+    game_manager._game_engine = engine
+
+    with pytest.raises(SystemExit):
+        game_manager.exit_application()
+
+    engine.interrupt_game.assert_called_once()
+    game_manager._persist_game_port.assert_not_called()
+
+
+# TODO decide: keep decision to overwrite previous interrupted?
+def test_exit_application_saves_interrupted_then_exits(game_manager, persist_game_port_mock):
+    engine = MagicMock()
+    # engine switches state when GameManager.interrupt_game() is called
+    engine.get_game_obj.return_value.game_state = Gamestate.INTERRUPTED
+    engine.create_game_persist_object.return_value = {"gamestate": Gamestate.INTERRUPTED}
+    game_manager._game_engine = engine
+
+    with pytest.raises(SystemExit):
+        game_manager.exit_application()
+
+    engine.interrupt_game.assert_called_once()
+    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": Gamestate.INTERRUPTED})

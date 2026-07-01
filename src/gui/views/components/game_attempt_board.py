@@ -40,11 +40,9 @@ class FeedbackPeg(QWidget):
         if self.state == self.BLACK:
             fill = QColor("#111")
             border = None
-
         elif self.state == self.WHITE:
             fill = QColor("white")
             border = QColor("#aaa")
-
         else:
             fill = QColor("#ccc")
             border = None
