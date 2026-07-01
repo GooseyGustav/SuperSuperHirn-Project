@@ -31,6 +31,9 @@ class ForPersistingConfig(ABC):
             max_attempts is intentionally absent -- it is a fixed constant, not available
             for User selection. Validity check by core App.
             If no User Config is available, the default config is used.
+
+        Note:
+            Does not raise Error. If config missing or corrupt: loads default config.
         """
 
     @abstractmethod
@@ -41,6 +44,9 @@ class ForPersistingConfig(ABC):
         Args:
             config_dict: The dictionary containing configuration data to be saved.
             Same shape as load_config_dict() returns.
+
+        Raises:
+            OSError: write failure.
         """
 
     @abstractmethod
@@ -48,6 +54,9 @@ class ForPersistingConfig(ABC):
         """Reset the configuration to the default values. (The implementing Adapter
         should load the default config from the external file that has the default
         config data and write it to the user config JSON file.)
+
+        Raises:
+            OSError: write failure.
         """
 
     # Versions that work with Strings instead of Dictionaries:

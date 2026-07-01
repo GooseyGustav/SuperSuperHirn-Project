@@ -17,11 +17,21 @@ class ForGameAdministration(ABC):
 
         Raises:
             ValueError: If the game configuration or the choice of players is invalid.
+
+        Note:
+            Runs on a worker thread because main thread must stay free for GUI.
+            Consequence: Config/assembly errors do NOT raise synchronously to the caller.
+            They are logged (and, if wired, emitted via the executor's error signal).
+            A synchronous try/except here catches nothing. # TODO fix threading issue
         """
 
     @abstractmethod
     def exit_application(self) -> None:
-        """Exits the application (closes the entire program)."""
+        """Exits the application (closes the entire program).
+
+        Note:
+            No automatic game saving --> does not raise Error.
+        """
 
     @abstractmethod
     def restart_game(self) -> None:
@@ -29,22 +39,41 @@ class ForGameAdministration(ABC):
 
         Raises:
              ValueError: If the game configuration or the choice of players is invalid.
+
+        Note:
+            Runs on a worker thread because main thread must stay free for GUI.
+            Consequence: Config/assembly errors do NOT raise synchronously to the caller.
+            They are logged (and, if wired, emitted via the executor's error signal).
+            A synchronous try/except here catches nothing. # TODO fix threading issue
         """
 
     @abstractmethod
     def abort_game(self) -> None:
-        """Aborts the game (clears the board and stops the game)."""
+        """Aborts the game (clears the board and stops the game).
+
+        Note:
+            No game saving --> does not raise Error."""
 
     @abstractmethod
     def interrupt_game(self) -> None:
-        """Interrupts the game (saves the game for a later time and stops it)."""
+        """Interrupts the game (saves the game for a later time and stops it).
+
+        Raises:
+            OSError: could not write the save file.
+        """
 
     @abstractmethod
     def resume_interrupted(self) -> None:
         """Resumes the interrupted game (loads the saved game and continues the game).
 
         Raises:
-            ValueError: If the game configuration or saved game data is invalid (corrupt save).
+            CorruptedSaveError (a custom Exception): saved game exists but is malformed
+            (offer to delete, start new).
+            ValueError: game configuration or matchup is invalid.
+            OSError: failure reading saved game file (permission or disk error).
+
+        Note:
+            Missing saved game file -> start new game (no Error raise).
         """
 
     @abstractmethod
@@ -54,6 +83,12 @@ class ForGameAdministration(ABC):
 
         Raises:
             ValueError: If the game configuration or the choice of players is invalid.
+
+        Note:
+            Runs on a worker thread because main thread must stay free for GUI.
+            Consequence: Config/assembly errors do NOT raise synchronously to the caller.
+            They are logged (and, if wired, emitted via the executor's error signal).
+            A synchronous try/except here catches nothing. # TODO fix threading issue
         """
 
     @abstractmethod

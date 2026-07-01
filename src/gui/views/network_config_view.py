@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushBu
 
 class NetworkConfigView(QWidget):
     # Signals for the controller
-    start_requested = pyqtSignal(str, str)  # Sends (network_address, gamer_id)
+    start_requested = pyqtSignal(str, str, str)  # Sends (address, gamer_id, role)
     cancel_requested = pyqtSignal()  # Returns to the main menu
 
     def __init__(self):
@@ -35,6 +35,12 @@ class NetworkConfigView(QWidget):
         layout.addWidget(self._lbl_gamer_id)
         layout.addWidget(self._edit_gamer_id)
 
+        # self._lbl_role = QLabel("Select Role:")
+        # self._combo_role = QComboBox()
+        # self._combo_role.addItems(["CODEBREAKER", "OBSERVER"])
+        # layout.addWidget(self._lbl_role)
+        # layout.addWidget(self._combo_role)
+
         # --- Spacer for layout ---
         layout.addStretch()
 
@@ -54,10 +60,12 @@ class NetworkConfigView(QWidget):
         """Read the fields, check for empty inputs, and emit the signal."""
         address = self._edit_address.text().strip()
         gamer_id = self._edit_gamer_id.text().strip()
+        # role = self._combo_role.currentText()
+        role = "CODEBREAKER"  # Default role
 
         # Basic GUI validation to prevent sending empty strings to the backend
         if not address or not gamer_id:
-            QMessageBox.warning(self, "Missing Data", "Please fill out both fields.")
+            QMessageBox.warning(self, "Missing Data", "Please fill out all fields.")
             return
 
-        self.start_requested.emit(address, gamer_id)
+        self.start_requested.emit(address, gamer_id, role)

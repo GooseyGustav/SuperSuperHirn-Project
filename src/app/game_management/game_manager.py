@@ -1,73 +1,13 @@
-# From Class Reference:
-#
-# **NOTE: even if Adapters have their own validators: port return must get validated (wether is legal).
-# GameEngine calls ports => checks legality of each move in run()**
-#
-# ### `GameManager` _(implements `ForGameAdministration` + `ForConfiguringGame`)_
-#
-# - **Responsibility:** the driving-port implementation; orchestrates lifecycle + configuration;
-# owns persistence (config + game); delegates live-game/thread work to `GameEngine`.
-# - **Attributes:** `configManager: ConfigManager`, `gameEngine: GameEngine`, `persistConfigPort:
-# ForPersistingConfig`, `assemblingPlayersPort: ForAssemblingPlayers`, `persistGamePort: ForPersistingGame`
-# - **Methods (admin):** `startGame()` _(Calls `assemblinglayersPort.assemblePlayers`)_,
-# `startGameDeleteInterrupted()`, `resumeInterrupted()`, `interruptGame()`, `abortGame()`, `restartGame()`,
-# `exitProgramm()`.
-# - **Methods (config):** `saveConfig(dict)`, `loadConfig(): dict`, `resetConfig()`. **(private):**
-# `createConfigPersistObject(): dict`, `persistConfig(config)`, `persistGame(game: Game)`
-# _(builds the dict and calls `persistGamePort.saveGame(dict)`)_.
-# - **Constructor (injection):** `(persistConfigPort, assemblingPlayersPort, persistGamePort)`.
-# - **Creates:** `GameEngine` (per game), `ConfigManager`.
-# - **Instantiated by:** `SupersuperhirnApp`.
-
-# # from diagram:
-
-# attr/params:
-# configManager: ConfigManager
-# gameEngine: GameEngine
-# persistConfigPort: ForPersistingConfig
-# persistGamePort: ForPersistingGame
-# assemblingPlayersPort: ForAssemblingPlayers
-#
-# methods
-# + startGame() // note on side
-# + startGameDeleteInterrupted()
-# + resumeInterrupted() // prüfen ob spiel gespeichert; lädt gameData aus dict von loadGame(),
-# erstellt GameConfig (aber delegiert prüfen der Validität des secretCodes aus geladenen gameData an GameEngine)
-# + interruptGame() // ruft gameengine.createGamePersistObject() und aus dem returned
-# objekt erstellt dict fuer persistgameport
-# + abortGame()
-# + restartGame()
-# + exitApplication()
-# + saveConfig(Dict)  //  zu port
-# + loadConfig(): Dict
-# + resetConfig()
-
-
-# From Diagram (OM):
-
-# WICHTIG ZU GAME MANAGER  (ABLAUF)
-#
-# startGame() :
-# Rolle des startens und eines kompletten runGame(), durchführt das spiel bis stop/interrupt und persistiert:
-# - erhält player vom port forassembling players (runtime: bedeutet vom matchmaker)
-# - ruft loadConfig(): Dict
-# - ConfigManager erstellt Config Datei
-# - ruft gameengine.run()
-#         - run() läuft
-#         - spiel interrupted oder beendet
-#         - run() gibt Game-Objekt zurück
-# - ruft gameengine.createGamePersistObject(): Object
-# - gibt dieses Object als dict zum Port
-
-
 import ipaddress
 import logging
 import sys
+import threading
 from urllib.parse import urlparse
 
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_management.thread_executor import ThreadExecutor
 from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
@@ -144,7 +84,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._gamer_id = None
         self.executor.run(self._configure_and_run)
 
-    def start_network_game(self, network_address: str, gamer_id: str) -> None:
+    def start_network_game(self, network_address: str, gamer_id: str, role: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
         network address and provides the User's Gamer ID. The implementer is responsible for
         validating the network address and gamer ID.
@@ -152,6 +92,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         Args:
             network_address: IP:port or URL ("http://" or "https://" optional.)
             gamer_id: the user's gamer ID
+            role: the user's role in the game (CODEBREAKER or OBSERVER)
 
         Raises:
             ValueError: data or protocol failure :
@@ -171,7 +112,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_enabled = True
         self._network_address = network_address
         self._gamer_id = gamer_id
-        self._configure_and_run()
+        self._user_role = role
+        game_thread = threading.Thread(target=self._configure_and_run, daemon=True)
+        game_thread.start()
         # does not persist on purpose
 
     def resume_interrupted(self) -> None:
@@ -179,11 +122,17 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         self._network_enabled = False
 
-        # TODO: handle corrupt-persist: load_game() + GameEngine.resume() (called inside _configure_and_run)
-        #  can raise ValueError AND KeyError on a corrupt save. Not caught here yet.
-        #  This is the eventual catch spot (kept separate from the run() illegal-move catch).
-        game_data = self._persist_game_port.load_game()
-        self._configure_and_run(game_data)
+        try:
+            game_data = self._persist_game_port.load_game()
+            self._configure_and_run(game_data)
+        except FileNotFoundError:
+            logging.info("No saved game to resume.")
+            return
+        except CorruptedSaveError:
+            self._game_engine = None
+            self._config_manager = None
+            logging.warning("Corrupt save detected; cannot resume.", exc_info=True)
+            raise  # TODO: GUI soll anbieten : delete and start new
 
     def _configure_and_run(self, game_data: dict | None = None) -> None:
         """Shared flow for start game/resume interrupted to set up and run a
@@ -195,8 +144,14 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         Engine.run() continues the existing, saved game instead of creating a new game.
 
         Raises:
+            ValueError: invalid config or corrupt matchup on resume (re-validated here).
+            ConnectionError: network handshake / assemble failure.
+            CorruptedSaveError: engine.resume() on a malformed save.
 
-
+        Note:
+            Illegal move during run() (ValueError/TypeError) is swallowed, then quiet abort,
+            no save.
+            (On threaded start_game these do NOT reach the caller (worker thread)) # TODO solve thread issue
         """
         # get config for all elements
         config_dict = self.load_config()  # load from save config JSON
@@ -209,6 +164,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         # make sure the "real" live bool ist active (not old saved config)
         config_dict["network_enabled"] = self._network_enabled
+        if self._network_enabled:
+            config_dict["user_role"] = self._user_role.value if hasattr(self._user_role, "value") else self._user_role
 
         # recheck
         self._validate_config(config_dict)
@@ -254,13 +211,17 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             self._config_manager = None
             return
 
-        self._persist_current_game_if_interrupted()
+        if game_config.user_role.value != "OBSERVER":
+            self._persist_current_game_if_interrupted()
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
         starts a new game).
         """
-        self._persist_game_port.delete_game()
+        try:
+            self._persist_game_port.delete_game()
+        except OSError:
+            logging.warning("Could not delete old game. Starting new game anyway.", exc_info=True)
         self.start_game()
 
     def interrupt_game(self) -> None:
@@ -299,13 +260,11 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self.start_game()
 
     def exit_application(self) -> None:
-        """Exits the application (closes the entire program), saving the
-        current game beforehand.
-
-        # TODO decide: keep decision to overwrite previous interrupted?
+        """Exits the application (closes the entire program). If there is a game
+        currently running, it is simply aborted (not saved).
         """
-        if self._game_engine is not None:
-            self.interrupt_game()
+        if self._game_engine is not None:  # redundant, but prefer explicit call at call
+            self.abort_game()
         sys.exit()
 
     # ForConfiguringGame methods
@@ -340,16 +299,18 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """
         # enum fields are validated by the enum itself with simple instantiation attempts
         Gamemode(config["gamemode"])  # ValueError if not a valid Gamemode
-        user_role = Role(config["user_role"])  # ValueError if not a valid Role
+        user_role = Role(config["user_role"])
         network_enabled = config["network_enabled"]
 
         # bool check
-        if not isinstance(config["network_enabled"], bool):
+        if not isinstance(network_enabled, bool):
             raise ValueError("network_enabled must be a boolean")
 
-        # check network only with user_role = codebreaker
-        if network_enabled and user_role is not Role.CODEBREAKER:
-            raise ValueError("network_enabled is only valid with user_role set to codebreaker")
+        # check network only with user_role = codebreaker or observer
+        if config["network_enabled"]:
+            role = Role(user_role)
+            if role not in [Role.CODEBREAKER, Role.OBSERVER]:
+                raise ValueError("network_enabled is only valid with user_role set to CODEBREAKER or OBSERVER")
 
         # non-negative int check for time
         for key in ("countdown_millis", "delay_millis"):

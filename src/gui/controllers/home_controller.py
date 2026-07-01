@@ -17,6 +17,8 @@ class HomeController:
 
         self._connect_events()
 
+        self.home_view.btn_game_continue.setEnabled(False)
+
     def _connect_events(self):
         self.home_view.game_continue_requested.connect(self._continue_game)
         self.home_view.game_new_requested.connect(self._new_game)
@@ -32,7 +34,6 @@ class HomeController:
         self.ui_service_adapter.on_start_game()
 
         config = self.ui_service_adapter.on_load_config()
-        print(config)
 
         role = config.get("user_role")
 
@@ -48,6 +49,8 @@ class HomeController:
 
             case _:
                 raise ValueError(f"Unknown user_role: {role}")
+
+        self.home_view.btn_game_continue.setEnabled(True)
 
     def _continue_game(self):
         from gui.controllers.game_ui_controller import GameController
@@ -77,23 +80,49 @@ class HomeController:
         self.network_view.cancel_requested.connect(lambda: MainWindow.instance().navigate_to("home"))
         self.network_view.start_requested.connect(self._start_network_game)
 
-    def _start_network_game(self, address: str, gamer_id: str) -> None:
-        """Start the network game and handle potential connection errors."""
+    # ---------- Config & Timer Methods ----------
+
+    def _start_network_game(self, address: str, gamer_id: str, role: str) -> None:
+        """
+        Starts the network game and waits for the background thread to be ready.
+
+        Args:
+            address (str): The network address to connect to.
+            gamer_id (str): The identifier for the local player.
+        """
+        from PyQt6.QtCore import QTimer
         from PyQt6.QtWidgets import QMessageBox
 
-        from gui.controllers.game_ui_controller import GameController
-
         try:
-            # pass the data to the adapter (and thus to the GameManager)
-            self.ui_service_adapter.on_start_network_game(address, gamer_id)
+            self.ui_service_adapter.on_start_network_game(address, gamer_id, role)
 
-            # if no errors occur, initialize the GameController to start the game view
-            self.game_ctrl = GameController()
+            # start a QTimer to check every 100 milliseconds if the core is ready
+            self.ready_timer = QTimer()
+            self.ready_timer.timeout.connect(self._check_if_core_is_ready)
+            self.ready_timer.start(100)
 
-        except (ConnectionError, ValueError) as e:
-            # catch exceptions from the GameManager or NetworkCodemaker
+        except Exception as e:
             QMessageBox.critical(
                 self.network_view,
                 "Connection Error",
                 f"The network game could not be started:\n\n{e}",
             )
+
+    def _check_if_core_is_ready(self) -> None:
+        """Called every 100ms until the core has initialized the player_adapter."""
+        from gui.controllers.game_ui_controller import GameController
+
+        # once the player_adapter is no longer None, the core has finished its setup
+        if MainWindow.instance().player_adapter is not None:
+
+            role = self.ui_service_adapter.on_load_config().get("user_role")
+            if role == "OBSERVER":
+                print("Observer role detected. Starting observer game in background.")
+            else:
+                self.game_ctrl = GameController(is_network=True)
+
+            # stop the timer immediately so it does not trigger again
+            self.ready_timer.stop()
+
+            # safely instantiate the GameController now that dependencies exist
+            self.game_ctrl = GameController(is_network=True)

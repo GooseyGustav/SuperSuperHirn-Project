@@ -34,5 +34,5 @@ class UiGameConfigAndAdminAdapter:
     def on_exit_application(self) -> None:
         pass
 
-    def on_start_network_game(self, ip_adress: str, gamer_id: int) -> None:
-        self.for_game_administration.start_network_game(ip_adress, gamer_id)
+    def on_start_network_game(self, ip_adress: str, gamer_id: int, role: str) -> None:
+        self.for_game_administration.start_network_game(ip_adress, gamer_id, role)

@@ -46,10 +46,6 @@ class ColorSlot(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(self.rect())
 
-        # Border circle
-        if self.selected:
-            painter.setPen(QColor("yellow"))
-        else:
-            painter.setPen(QColor("black"))
+        painter.setPen(QColor("black"))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))

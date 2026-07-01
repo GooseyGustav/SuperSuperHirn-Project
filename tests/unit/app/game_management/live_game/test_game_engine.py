@@ -7,6 +7,7 @@ from app.game_management.game_config_management.config import Config
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.clock import Clock
 from app.game_management.live_game.game_engine import GameEngine
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.game import Game
 from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
@@ -630,7 +631,7 @@ def test_resume_invalid_secret_code(engine):
         "attempt_list": [],
     }
 
-    with pytest.raises(ValueError, match="length"):
+    with pytest.raises(CorruptedSaveError):
         engine.resume(game_data)
 
 
@@ -650,8 +651,14 @@ def test_resume_invalid_guess_in_attempt_list(engine):
         ],
     }
 
-    with pytest.raises(ValueError, match="length"):
+    with pytest.raises(CorruptedSaveError):
         engine.resume(game_data)
+
+
+def test_resume_corrupt_data_raises_corrupted_save_error(engine):
+    corrupt_game_data = {"attempt_list": []}  # "secret_code" key missing (local game)
+    with pytest.raises(CorruptedSaveError):
+        engine.resume(corrupt_game_data)
 
 
 def test_resume_network_game_dont_set_secret_code(default_config):

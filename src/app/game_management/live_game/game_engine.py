@@ -1,52 +1,9 @@
-# NOTE: GameSessionManager removed (explained below DocStrings).
-# Still mentioned in big description from Class Reference just in case should be created again.
-#
-# From Class Reference:
-#
-# - **Responsibility:** runs one round's loop; pulls moves from the player ports; owns the live `Game`, `Clock`,
-# `GameSessionManager`;
-# **checks legality of each move (length of secret code, of guess and of feedback, colors used)
-# - **Attributes:** `game: Game`, `game_session_manager: GameSessionManager`, `clock: Clock`, `game_config: Config`,
-# `shutdown_requested: bool`.
-# - **Methods:** `run(codemaker, codebreaker): Game`, `create_game_persist_object(): object`, `interrupt_game()`,
-# **`resume(game_data: dict)`**,
-# `start_clock(time_millis: int): bool` , `get_game_obj(): Game`, `assert_code_legal(code: list[int])`,
-# `assert_feedback_legal(fb: list[int])`
-#     - **Notes:**
-#         - `run(codemaker, codebreaker): Game` // ruft die ports für moves auf ; config aus Params entfernt
-#         (ist schon Attr. self.game_config);
-#         check each move's legality with helpers assert_code_legal , assert_feedback_legal
-#         - `create_game_persist_object(): object` // beinhaltet auch numberOfColors, remainingTimeMillis ;
-#         Params entfernt da schon Attribute (self.game, self.clock. self.game_config)
-#         - `interrupt_game()`
-#         - `resume(game_data: dict)` // (`game_data` passed from GameManager); checks imported game data for
-#         legality before starting (in case
-#         corrupt file) with `assert_code_legal`
-#             - `start_clock(time_millis: int): bool` // gibt true flag ("future object") zurueck wenn countdown 0 ist ;
-#             (changed: no unit parameter as millis in the internals of the app)
-#             + `get_game_obj(): Game -` assert_code_legal(code: list) `// priv. helper, checks secret/guess legal
-#             (length, colors) -` assert_feedback_legal(fb: list)` // priv. helper,
-#             checks feedback legal (length, colors)
-#
-# # Legality validating helpers:
-#
-# _assert_code_legal(code): # for secret and guess
-# len(code) == self.game_config.number_of_positions
-# all(1 <= c <= self.game_config.number_of_colors for c in code)
-#
-# _assert_feedback_legal(fb):
-# len(fb) <= self.game_config.number_of_positions
-# all(c in (7, 8) for c in fb)
-#
-# - **Constructor (injection):** `(game_config: Config)`; player ports arrive via `run(...)`.
-# (Holds no persistence port — it returns the `Game`; `GameManager` persists.)
-# - **Creates:** `Game`, `Clock`, `GameSessionManager`.
-# - **Instantiated by:** `GameManager` (per game).
-
+import time
 
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_management.live_game.clock import Clock
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
@@ -66,7 +23,6 @@ class GameEngine:
     # deleted file mentioned in docstring GameSessionManager per modification of
     # Class Reference and Diagram, following discussion with Marlon that it was
     # unnecessary because GameManagement and GameEngine seem to cover everything.
-    # If necessary TODO: reinstate GameSessionManager for threading in TIME_TRIAL (?)
 
     def __init__(self, game_config: Config) -> None:
         self.game_config = game_config
@@ -98,6 +54,8 @@ class GameEngine:
 
         # differentiate between a new game and a resumed game
         if self.game.secret_code is None:
+            if self.game_config.user_role.value == "OBSERVER":
+                time.sleep(self.game_config.delay_millis / 1000)
             secret_code_as_list = codemaker.get_secret_code()
             self._assert_code_legal(secret_code_as_list)
             if not self.game_config.network_enabled:
@@ -117,6 +75,8 @@ class GameEngine:
                 self.clock.start()
 
             try:
+                if self.game_config.user_role.value == "OBSERVER":
+                    time.sleep(self.game_config.delay_millis / 1000)
                 guess_as_list = codebreaker.get_guess(self._board_for_codebreaker())
             except TimeoutInterrupt:
                 # Interactive cutoff: raised by the GUI adapter when the player runs out of time.
@@ -128,9 +88,12 @@ class GameEngine:
                 self.game.game_state = Gamestate.LOST_TIMEOUT
                 break
 
+            # board = attempt history translated to the primitive list of tuples the port wants
             self._assert_code_legal(guess_as_list)
             self.game.set_guess(guess_as_list)
 
+            if self.game_config.user_role.value == "OBSERVER":
+                time.sleep(self.game_config.delay_millis / 1000)
             feedback_pegs = codemaker.get_feedback(secret_code_as_list, guess_as_list)  # int list
             self._assert_feedback_legal(feedback_pegs)
             nr_of_black_pins = feedback_pegs.count(8)
@@ -241,29 +204,29 @@ class GameEngine:
             (Shape defined by ForPersistingGame.save_game()/load_game()).
         """
 
-        # TODO : handle corrupt persisted data:
-        #  the game_data[...] / attempt_row[...] / fb[...] accesses can raise KeyError (missing keys),
-        #  and Color()/FeedbackStatus()/ _assert_code_legal can raise ValueError on a corrupt/malformed save.
-        #  These currently propagate UNHANDLED — corrupt-persist handling is a separate deferred decision.
-
         code_length = CodeConstants.NUMBER_OF_PINS
 
         self.game = Game(game_mode=self.game_config.gamemode, code_length=code_length, game_state=Gamestate.INTERRUPTED)
 
-        # Secret code restored for local games.
-        # If ever wished for network games: the remote codemaker owns it.
-        if not self.game_config.network_enabled:
-            secret_code_list = game_data["secret_code"]
-            self._assert_code_legal(secret_code_list)
-            self.game.set_secret_code(secret_code_list)
+        try:
+            # Secret code restored for local games.
+            # If ever wished for network games: the remote codemaker owns it.
+            if not self.game_config.network_enabled:
+                secret_code_list = game_data["secret_code"]
+                self._assert_code_legal(secret_code_list)
+                self.game.set_secret_code(secret_code_list)
 
-        for attempt_row in game_data["attempt_list"]:
-            guess_as_list = attempt_row["guess"]
-            self._assert_code_legal(guess_as_list)
-            guess_object = Guess(Code((code_length, [Slot(Color(c)) for c in guess_as_list])))
-            fb = attempt_row["feedback"]
-            feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
-            self.game.attempt_list.append(Attempt(guess_object, feedback_object))
+            for attempt_row in game_data["attempt_list"]:
+                guess_as_list = attempt_row["guess"]
+                self._assert_code_legal(guess_as_list)
+                guess_object = Guess(Code((code_length, [Slot(Color(c)) for c in guess_as_list])))
+                fb = attempt_row["feedback"]
+                feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
+                self.game.attempt_list.append(Attempt(guess_object, feedback_object))
+        except (KeyError, ValueError, TypeError) as e:
+            # KeyError: missing key; ValueError: bad enum, not legal; TypeError: non int Color()/Feedback()
+            # All combined as one type
+            raise CorruptedSaveError(f"Corrupt save: {e}") from e
 
     def get_game_obj(self) -> Game | None:
         """Returns the current game object."""

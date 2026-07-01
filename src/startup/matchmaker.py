@@ -90,11 +90,14 @@ class Matchmaker(ForAssemblingPlayers):
                 self._notify_gui_callback({"codemaker": gui_codemaker, "codebreaker": None})
                 return gui_codemaker, cpu_codebreaker
             case "OBSERVER":
-                cpu_codemaker = CpuCodemaker()
+                cpu_or_net_codemaker = (
+                    self._network_codemaker(network_address, gamer_id, number_of_positions, number_of_colors)
+                    if network_enabled
+                    else CpuCodemaker()
+                )
                 cpu_codebreaker = CpuCodebreaker()
-                # self._notify_gui_callback({"codemaker": None,
-                #                            "codebreaker": None})
-                return cpu_codemaker, cpu_codebreaker
+                self._notify_gui_callback({"codemaker": cpu_or_net_codemaker, "codebreaker": cpu_codebreaker})
+                return cpu_or_net_codemaker, cpu_codebreaker
             case _:
                 raise ValueError(f"Unsupported user_role: {user_role}")  # TODO: catch that error
 
@@ -109,12 +112,3 @@ class Matchmaker(ForAssemblingPlayers):
     def _notify_gui_callback(self, player_adapter: dict):
         if self._gui_callback is not None:
             self._gui_callback(player_adapter)
-
-
-# Waren im Diagram und in der Klassendoku, aber doch nicht nötig:
-
-# def _create_codebreaker(self, player_type: str):
-#     pass
-#
-# def _create_netplayer(self, player_type: str):
-#     self.network_manager = NetworkManager(server_url=None, timeout=None)

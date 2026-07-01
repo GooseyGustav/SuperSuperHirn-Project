@@ -1,6 +1,8 @@
 import json
+import logging
 from pathlib import Path
 
+from app.game_management.save_errors import CorruptedSaveError
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
 
 
@@ -29,9 +31,13 @@ class GameJsonAdapter(ForPersistingGame):
 
     def save_game(self, game_data: dict) -> None:
         """Saves the provided game dictionary to disk as a JSON file."""
-        with self.file_path.open("w", encoding="utf-8") as json_file:
-            json.dump(game_data, json_file, indent=4)
-            json_file.write("\n")
+        try:
+            with self.file_path.open("w", encoding="utf-8") as json_file:
+                json.dump(game_data, json_file, indent=4)
+                json_file.write("\n")
+        except OSError:
+            logging.error("Failed to save game.", exc_info=True)
+            raise
 
     def load_game(self) -> dict:
         """Loads the game dictionary from the JSON file on disk.
@@ -41,10 +47,13 @@ class GameJsonAdapter(ForPersistingGame):
 
         Raises:
             FileNotFoundError: If the save file does not exist.
-            json.JSONDecodeError: If the file exists but contains invalid JSON.
+            CorruptedSaveError: If the file exists but contains invalid JSON.
         """
-        with self.file_path.open("r", encoding="utf-8") as json_file:
-            return json.load(json_file)
+        try:
+            with self.file_path.open("r", encoding="utf-8") as json_file:
+                return json.load(json_file)
+        except json.JSONDecodeError as e:
+            raise CorruptedSaveError(f"The save file {e} is corrupted.") from e
 
     def delete_game(self) -> None:
         """Deletes the save file if it exists. Passes silently otherwise."""

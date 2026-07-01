@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.game_management.game_manager import GameManager
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.game_state import Gamestate
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
@@ -175,9 +176,17 @@ def test_validate_config_rejects_invalid(valid_config_dict, field, invalid_value
         GameManager._validate_config(invalid)
 
 
-def test_validate_config_network_requires_user_role_codebreaker(valid_config_dict):
+def test_validate_config_network_allows_codebreaker_and_observer(valid_config_dict):
+    valid_cb = {**valid_config_dict, "network_enabled": True, "user_role": "CODEBREAKER"}
+    GameManager._validate_config(valid_cb)
+
+    valid_obs = {**valid_config_dict, "network_enabled": True, "user_role": "OBSERVER"}
+    GameManager._validate_config(valid_obs)
+
+
+def test_validate_config_network_forbids_codemaker(valid_config_dict):
     invalid = {**valid_config_dict, "network_enabled": True, "user_role": "CODEMAKER"}
-    with pytest.raises(ValueError, match="codebreaker"):
+    with pytest.raises(ValueError, match="only valid with user_role set to CODEBREAKER or OBSERVER"):
         GameManager._validate_config(invalid)
 
 
@@ -267,6 +276,44 @@ def test_resume_interrupted_illegal_move_aborts_without_saving(
     engine.run.side_effect = ValueError("illegal move")
 
     # Act
+    game_manager.resume_interrupted()
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_resume_interrupted_corrupt_save_raises_and_resets(
+    mock_engine_class,
+    game_manager,
+    persist_config_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    persist_game_port_mock.load_game.return_value = {"matchup": {}}
+    engine = mock_engine_class.return_value
+    engine.resume.side_effect = CorruptedSaveError("corrupt save")
+
+    # Act / Assert
+    with pytest.raises(CorruptedSaveError):
+        game_manager.resume_interrupted()
+
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+    assert game_manager._config_manager is None
+
+
+def test_resume_interrupted_missing_save_returns_quietly(
+    game_manager,
+    persist_game_port_mock,
+):
+    # Arrange
+    persist_game_port_mock.load_game.side_effect = FileNotFoundError
+
+    # Act (must not raise)
     game_manager.resume_interrupted()
 
     # Assert
@@ -467,16 +514,19 @@ def _wire_mockies_and_patchies_with_fixtures(
     assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_run_connection_error_reraised_to_caller_through_driving_port(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     _wire_mockies_and_patchies_with_fixtures(
         game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
     )
@@ -484,19 +534,22 @@ def test_run_connection_error_reraised_to_caller_through_driving_port(
     game_engine_mock.return_value.run.side_effect = ConnectionError("lost")
 
     with pytest.raises(ConnectionError):
-        game_manager.start_network_game("1.2.3.4:8080", "team13")
+        game_manager.start_network_game("1.2.3.4:8080", "team13", "CODEBREAKER")
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_run_illegal_move_value_error_caught_by_game_manager_internally(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     _wire_mockies_and_patchies_with_fixtures(
         game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
     )
@@ -504,24 +557,27 @@ def test_run_illegal_move_value_error_caught_by_game_manager_internally(
     game_engine_mock.return_value.run.side_effect = ValueError("illegal move")
 
     # no raise! (internal catch)
-    game_manager.start_network_game("1.2.3.4:8080", "team13")
+    game_manager.start_network_game("1.2.3.4:8080", "team13", "CODEBREAKER")
     assert game_manager._game_engine is None  # check clean up was done
 
 
+@patch("app.game_management.game_manager.threading.Thread")
 @patch("app.game_management.game_manager.ConfigManager")
 @patch("app.game_management.game_manager.GameEngine")
 def test_assemble_players_connection_error_reraised_to_caller_through_driving_port(
     game_engine_mock,
     config_manager_mock,
+    mock_thread,
     game_manager,
     persist_config_port_mock,
     assembling_players_port_mock,
     config_dict_valid_network_on,
 ):
+    mock_thread.side_effect = lambda target, daemon: MagicMock(start=target)
     persist_config_port_mock.load_config_dict.return_value = config_dict_valid_network_on
     assembling_players_port_mock.assemble_players.side_effect = ConnectionError("unreachable")
     with pytest.raises(ConnectionError):
-        game_manager.start_network_game("1.2.3.4:8080", "team13")
+        game_manager.start_network_game("1.2.3.4:8080", "team13", "CODEBREAKER")
 
 
 # ---- GameManager: exit_application() works correctly ------
@@ -540,16 +596,13 @@ def test_exit_application_interrupts_and_exits(game_manager, game_state):
     game_manager._persist_game_port.assert_not_called()
 
 
-# TODO decide: keep decision to overwrite previous interrupted?
-def test_exit_application_saves_interrupted_then_exits(game_manager, persist_game_port_mock):
+def test_exit_application_aborts_without_saving(game_manager, persist_game_port_mock):
     engine = MagicMock()
-    # engine switches state when GameManager.interrupt_game() is called
     engine.get_game_obj.return_value.game_state = Gamestate.INTERRUPTED
-    engine.create_game_persist_object.return_value = {"gamestate": Gamestate.INTERRUPTED}
     game_manager._game_engine = engine
 
     with pytest.raises(SystemExit):
         game_manager.exit_application()
 
-    engine.interrupt_game.assert_called_once()
-    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": Gamestate.INTERRUPTED})
+    engine.interrupt_game.assert_called_once()  # abort_game
+    persist_game_port_mock.save_game.assert_not_called()

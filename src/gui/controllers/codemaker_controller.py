@@ -28,7 +28,6 @@ class GameCodemakerController:
     def _connect_events(self):
         self.game_view.exit_game_no_save_pressed.connect(self._on_game_aborted)
         self.game_view.exit_game_save_pressed.connect(self._on_exit_game_save)
-        self.game_view.restart_game_pressed.connect(self._on_restart_game)
 
         self.game_view.color_selected.connect(self._handle_color_input)
         self.game_view.feedback_color_selected.connect(self._handle_feedback_input)
@@ -46,8 +45,6 @@ class GameCodemakerController:
 
     def _on_guess_requested(self, attempt_list):
         """Core is waiting for a guess — update the board and arm the submit button."""
-        print(attempt_list)
-        print("exec1")
         self._update_board(attempt_list)
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
         self.guess_list = []  # clear previous guess
@@ -62,8 +59,6 @@ class GameCodemakerController:
             else:
                 black = feedback.count(8)
                 white = feedback.count(7)
-
-            print(white, "white", black, "black")
 
             self.game_view.game_attempt_board.set_feedback_slots(i, white, black)
 
@@ -110,7 +105,6 @@ class GameCodemakerController:
         Keeps slot_index in range [0, 5].
         """
         self.slot_index = max(0, min(5, self.slot_index + value))
-        print(self.slot_index)
 
     def add_color_secret_list(self, color: Color):
         if len(self.secret_list) < 5:
@@ -119,7 +113,6 @@ class GameCodemakerController:
     def add_color_feedback_list(self, color: Color):
         if len(self.feedback_list) < 5:
             self.feedback_list.append(color)
-            print(self.feedback_list)
 
     def _on_delete(self):
         if not self.secret_list:
@@ -136,7 +129,6 @@ class GameCodemakerController:
     def _on_submit(self):
         if self.codemaker_mode == "secret":
             if len(self.secret_list) == 5:
-                print(self.secret_list)
                 self.codemaker.submit_secret_code(self.secret_list)
                 self.codemaker_mode = "feedback"
                 self.game_view._setup_color_picker(self.codemaker_mode)
@@ -147,7 +139,6 @@ class GameCodemakerController:
             if len(self.feedback_list) == 5:
                 all_black = all(color == Color.BLACK for color in self.feedback_list)
 
-            print(f"submitting list {self.feedback_list}")
             self.codemaker.submit_feedback(self.feedback_list)
 
             if all_black:
@@ -179,6 +170,3 @@ class GameCodemakerController:
     def _on_exit_game_save(self):
         self._pending_interrupt = True
         self.ui_service_adapter.on_interrupt_game()
-
-    def _on_restart_game(self):
-        print("exec button 3")

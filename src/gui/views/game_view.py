@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from gui.views.components.color import Color
@@ -10,7 +10,7 @@ class GameView(QWidget):
     # ----- Admin Events -----
     exit_game_no_save_pressed = pyqtSignal()
     exit_game_save_pressed = pyqtSignal()
-    restart_game_pressed = pyqtSignal()
+    time_expired = pyqtSignal()
 
     # ----- Color Picker -----
     color_selected = pyqtSignal(object)
@@ -27,6 +27,9 @@ class GameView(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self.submit_enabled = False
+        self._time_left_ms = 0
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._on_timer_tick)
         self.player_mode: str = mode
         self._setup_layout()
         self._setup_ui_admin_stuff()
@@ -44,16 +47,17 @@ class GameView(QWidget):
         self.margin_layout.setSpacing(8)
 
         self.ui_admin_stuff = QWidget()
-        if self.player_mode in ("secret", "feedback"):
+        if self.player_mode in ("secret", "feedback", "observer"):
             self.secret_code = QWidget()
         self.attempts_board = QWidget()
         self.color_picker = QWidget()
 
         self.margin_layout.addWidget(self.ui_admin_stuff, 10)
-        if self.player_mode in ("secret", "feedback"):
+        if self.player_mode in ("secret", "feedback", "observer"):
             self.margin_layout.addWidget(self.secret_code, 10)
         self.margin_layout.addWidget(self.attempts_board, 70)
-        self.margin_layout.addWidget(self.color_picker, 10)
+        if self.player_mode in ("secret", "feedback", "guess"):
+            self.margin_layout.addWidget(self.color_picker, 10)
 
         outer_layout.addWidget(self.margin_widget)
 
@@ -81,12 +85,9 @@ class GameView(QWidget):
         self._btn_save_exit = QPushButton("SaveExit")
         self._btn_save_exit.clicked.connect(self.exit_game_save_pressed.emit)
 
-        self._btn_restart = QPushButton("Restart")
-        self._btn_restart.clicked.connect(self.restart_game_pressed.emit)
-
         left_layout.addWidget(btn_no_save_exit)
-        left_layout.addWidget(self._btn_save_exit)
-        left_layout.addWidget(self._btn_restart)
+        if self.player_mode != "observer":
+            left_layout.addWidget(self._btn_save_exit)
 
         # Empty space to the right of the buttons
         left_layout.addStretch()
@@ -94,8 +95,17 @@ class GameView(QWidget):
         # Right side
         right_layout = QVBoxLayout()
         right_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        right_layout.addWidget(QLabel("Top"))
-        right_layout.addWidget(QLabel("Bottom"))
+        self._lbl_timer = QLabel("00:00")
+        self._lbl_timer.setStyleSheet(
+            """
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        """
+        )
+        self._lbl_timer.setVisible(False)
+
+        right_layout.addWidget(self._lbl_timer)
 
         # Add layouts with stretch factors
         layout.addLayout(left_layout, 3)  # 60%
@@ -203,10 +213,44 @@ class GameView(QWidget):
 
     def set_network_mode(self, is_network: bool) -> None:
         """
-        Hide invalid buttons (Save & Exit, Restart) when a network game is active.
+        Hide invalid buttons (Save & Exit) when a network game is active.
 
         Args:
             is_network (bool): True if the current game is a network game.
         """
         self._btn_save_exit.setVisible(not is_network)
-        self._btn_restart.setVisible(not is_network)
+
+    def start_timer(self, duration_ms: int) -> None:
+        """
+        Starts the countdown timer for TIME_TRIAL mode.
+
+        Args:
+            duration_ms (int): Time in milliseconds.
+        """
+        self._time_left_ms = duration_ms
+        self._update_timer_label()
+        self._lbl_timer.setVisible(True)
+        self._timer.start(1000)
+
+    def stop_timer(self) -> None:
+        """Stops the timer (e.g., when the game is won, lost, or aborted)."""
+        self._timer.stop()
+        self._lbl_timer.setVisible(False)
+
+    def _on_timer_tick(self) -> None:
+        """Called every second by QTimer. Decrements time and updates UI."""
+        self._time_left_ms -= 1000
+
+        if self._time_left_ms <= 0:
+            self._time_left_ms = 0
+            self._timer.stop()
+            self._update_timer_label()
+            self.time_expired.emit()
+        else:
+            self._update_timer_label()
+
+    def _update_timer_label(self) -> None:
+        """Formats the remaining milliseconds into MM:SS and updates the label."""
+        total_seconds = self._time_left_ms // 1000
+        minutes, seconds = divmod(total_seconds, 60)
+        self._lbl_timer.setText(f"{minutes:02d}:{seconds:02d}")
