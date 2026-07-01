@@ -1,4 +1,5 @@
 import time
+
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_management.live_game.clock import Clock
@@ -29,9 +30,7 @@ class GameEngine:
         self.game: Game | None = None
         # Clock is only created for TIME_TRIAL; None in all other modes.
         self.clock: Clock | None = (
-            Clock(game_config.countdown_millis)
-            if game_config.gamemode == Gamemode.TIME_TRIAL
-            else None
+            Clock(game_config.countdown_millis) if game_config.gamemode == Gamemode.TIME_TRIAL else None
         )
 
     def run(self, codemaker, codebreaker) -> Game:
@@ -177,7 +176,9 @@ class GameEngine:
             "max_attempts": Game.MAX_ATTEMPTS,
             "secret_code": secret,
             "attempt_list": attempt_rows,
-            "remaining_time_millis": self.game_config.countdown_millis if self.game_config.gamemode == Gamemode.TIME_TRIAL else 0,
+            "remaining_time_millis": (
+                self.game_config.countdown_millis if self.game_config.gamemode == Gamemode.TIME_TRIAL else 0
+            ),
             "matchup": {
                 "gamemode": self.game_config.gamemode.value,
                 "user_role": self.game_config.user_role.value,
