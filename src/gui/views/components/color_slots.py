@@ -1,4 +1,6 @@
 from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtCore import Qt
 from gui.views.components.color import Color
 
 COLOR_MAP = {
@@ -15,21 +17,37 @@ COLOR_MAP = {
 class ColorSlot(QWidget):
     def __init__(self):
         super().__init__()
-        print("exec")
-        self.setStyleSheet("background: #123123;")
-        self.setMinimumSize(20, 20)
-        self.filled = False
-        self._set_empty()
+        self.setFixedSize(30, 30)
+        self.color = None
+        self.selected = False
 
-    def set_color(self, color: Color):
-        self.setStyleSheet(
-            f"background-color: {COLOR_MAP[color]}; border: 1px solid black; border-radius: 20%;"
-        )
-        self.filled = True
+    def set_selected(self, selected: bool):
+        self.selected = selected
+        self.update()
 
-    def reset(self):
-        self._set_empty()
+    def set_color(self, color):
+        self.color = color
+        self.update()
 
-    def _set_empty(self):
-        self.setStyleSheet("background-color: lightgray; border: 1px solid black;")
-        self.filled = False
+    def reset_color(self):
+        self.color = None
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        fill = QColor("lightgray") if self.color is None else QColor(COLOR_MAP[self.color])
+
+        # Fill circle
+        painter.setBrush(fill)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(self.rect())
+
+        # Border circle
+        if self.selected:
+            painter.setPen(QColor("yellow"))
+        else:
+            painter.setPen(QColor("black"))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))

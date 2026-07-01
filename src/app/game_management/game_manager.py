@@ -68,7 +68,9 @@ from urllib.parse import urlparse
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
+from app.game_management.thread_executor import ThreadExecutor
 from app.game_model.game_mode import Gamemode
+from app.game_model.game_state import Gamestate
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
@@ -122,6 +124,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_address: str | None = None
         self._gamer_id: str | None = None
 
+        # for threading
+        self.executor = ThreadExecutor()
+
     # ForGameAdministration methods
 
     def start_game(self) -> None:
@@ -137,8 +142,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_enabled = False
         self._network_address = None
         self._gamer_id = None
-
-        self._configure_and_run()
+        self.executor.run(self._configure_and_run)
 
     def start_network_game(self, network_address: str, gamer_id: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
@@ -250,7 +254,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             self._config_manager = None
             return
 
-        self._persist_current_game()
+        self._persist_current_game_if_interrupted()
 
     def start_game_delete_interrupted(self) -> None:
         """Starts the game and deletes the interrupted game (clears the board and
@@ -264,14 +268,21 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         if self._game_engine is None:  # no active game to interrupt (like if abort after illegal move passed)
             return
         self._game_engine.interrupt_game()
-        self._persist_current_game()
+        self._persist_current_game_if_interrupted()
 
-    def _persist_current_game(self) -> None:
-        """Build the dict to persist the current local game and save it.
+    def _persist_current_game_if_interrupted(self) -> None:
+        """Builds the dict to persist an INTERRUPTED local game and passes it to the Port
+        for game persistence. Only works if the game has the game state Gamestate.INTERRUPTED (the
+        only resumable game state).
         Does not save network games.
         """
         if self._network_enabled:
             return
+
+        current_game = self._game_engine.get_game_obj()
+        if current_game.game_state is not Gamestate.INTERRUPTED:
+            return
+
         game_data = self._game_engine.create_game_persist_object()
         self._persist_game_port.save_game(game_data)
 
@@ -289,7 +300,10 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
     def exit_application(self) -> None:
         """Exits the application (closes the entire program), saving the
-        current game beforehand."""
+        current game beforehand.
+
+        # TODO decide: keep decision to overwrite previous interrupted?
+        """
         if self._game_engine is not None:
             self.interrupt_game()
         sys.exit()

@@ -26,10 +26,10 @@ class UiGameConfigAndAdminAdapter():
         pass
 
     def on_interrupt_game(self) -> None:
-        pass
+        self.for_game_administration.interrupt_game()
 
     def on_abort_game(self) -> None:
-        pass
+        self.for_game_administration.abort_game()
 
     def on_exit_application(self) -> None:
         pass
