@@ -1,6 +1,7 @@
+import logging
 import sys
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from adapter.driven_adapter.for_persisting_config.file_tool.config_json_adapter import ConfigJsonAdapter
 from adapter.driven_adapter.for_persisting_game.file_tool.game_json_adapter import GameJsonAdapter
@@ -16,8 +17,13 @@ from .matchmaker import Matchmaker
 def main():
     app = QApplication(sys.argv)
 
-    SuperSuperhirnRunner()
+    def crash_net(exc_type, exc, tb):
+        logging.error("Unhandled exception", exc_info=(exc_type, exc, tb))
+        QMessageBox.critical(None, "Unexpected error", f"Something went wrong:\n\n{exc}")
 
+    sys.excepthook = crash_net  # safety net BEFORE building UI
+
+    SuperSuperhirnRunner()
     sys.exit(app.exec())
 
 
