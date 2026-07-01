@@ -53,10 +53,28 @@ class HomeController:
         self.home_view.btn_game_continue.setEnabled(True)
 
     def _continue_game(self):
+        from PyQt6.QtWidgets import QMessageBox
+
+        from app.game_management.save_errors import CorruptedSaveError
         from gui.controllers.game_ui_controller import GameController
 
-        self.ui_service_adapter.on_resume_interrupted()
-        self.game_ctrl = GameController()
+        try:
+            self.ui_service_adapter.on_resume_interrupted()
+        except CorruptedSaveError:
+            answer = QMessageBox.question(
+                self.home_view,
+                "Saved game corrupted",
+                "The saved game can't be loaded. Delete it and start fresh?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if answer == QMessageBox.StandardButton.Yes:
+                self.ui_service_adapter.on_start_game_delete_interrupted()
+            return
+        except (ValueError, OSError) as e:
+            QMessageBox.critical(self.home_view, "Couldn't continue", str(e))
+            return
+
+        self.game_ctrl = GameController()  # only on success
 
     def _go_to_settings(self):
         from gui.controllers.config_controller import ConfigController

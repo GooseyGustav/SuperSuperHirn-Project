@@ -35,17 +35,35 @@ class ConfigController:
         MainWindow.instance().navigate_to("home")
 
     def _load_config(self):
-        """Load config from the adapter and populate the view's widgets."""
-        config_data: dict = self.adapter.on_load_config()
-        if config_data:  # guard against None or empty dict from adapter
+        from PyQt6.QtWidgets import QMessageBox
+
+        try:
+            config_data: dict = self.adapter.on_load_config()
+        except (ValueError, OSError) as e:
+            QMessageBox.critical(self.config_view, "Couldn't load config", str(e))
+            return
+        if config_data:
             self.config_view.populate(config_data)
 
     def _save_config(self, payload: dict) -> None:
-        """Forward the dict built by the view directly to the adapter."""
-        self.adapter.on_save_config(payload)
+        from PyQt6.QtWidgets import QMessageBox
+
+        try:
+            self.adapter.on_save_config(payload)
+        except ValueError as e:
+            QMessageBox.warning(self.config_view, "Invalid settings", str(e))
+            return  # stay on form for re-input
+        except OSError as e:
+            QMessageBox.critical(self.config_view, "Couldn't save config", str(e))
+            return
         MainWindow.instance().navigate_to("home")
 
     def _reset_config(self) -> None:
-        """Reset config via adapter, then reload so widgets reflect the new defaults."""
-        self.adapter.on_reset_config()
+        from PyQt6.QtWidgets import QMessageBox
+
+        try:
+            self.adapter.on_reset_config()
+        except OSError as e:
+            QMessageBox.critical(self.config_view, "Couldn't reset config", str(e))
+            return
         self._load_config()
