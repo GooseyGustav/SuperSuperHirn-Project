@@ -18,11 +18,15 @@ MISSING_MODULE = object()
 
 
 class FakeRect:
+    """Small QRect double used by paintEvent border calculations."""
+
     def adjusted(self, *args):
         return self
 
 
 class FakeWidget:
+    """QWidget double that records sizing and repaint requests."""
+
     def __init__(self, *args, **kwargs):
         self._min_w = 0
         self._min_h = 0
@@ -65,6 +69,8 @@ class FakeWidget:
 
 
 class FakeLayout:
+    """Layout double that records added widgets and layout settings."""
+
     def __init__(self, *args, **kwargs):
         self.widgets = []
         self.margins = None
@@ -81,11 +87,15 @@ class FakeLayout:
 
 
 class FakeSizePolicy:
+    """Minimal QSizePolicy replacement for AttemptRow and AttemptsBoard."""
+
     class Policy:
         Expanding = "Expanding"
 
 
 class FakeQt:
+    """Subset of Qt enum values used by the component under test."""
+
     class PenStyle:
         NoPen = "NoPen"
 
@@ -97,11 +107,15 @@ class FakeQt:
 
 
 class FakeQColor:
+    """QColor double that keeps the requested color value inspectable."""
+
     def __init__(self, value):
         self.value = value
 
 
 class FakeQPainter:
+    """QPainter double that allows paintEvent branches to run without Qt."""
+
     class RenderHint:
         Antialiasing = "Antialiasing"
 
@@ -125,6 +139,8 @@ class FakeQPainter:
 
 
 class FakeColor(Enum):
+    """Color enum replacement used by the imported attempt board module."""
+
     RED = "red"
     GREEN = "green"
     BLUE = "blue"
@@ -134,6 +150,8 @@ class FakeColor(Enum):
 
 
 class FakeColorSlot:
+    """ColorSlot double with the same public methods used by GuessWidget."""
+
     def __init__(self):
         self.color = None
         self.selected = False
@@ -149,6 +167,7 @@ class FakeColorSlot:
 
 
 def install_fakes():
+    """Install fake Qt and component modules before importing the widget module."""
     pyqt6 = types.ModuleType("PyQt6")
 
     qtcore = types.ModuleType("PyQt6.QtCore")
@@ -180,6 +199,7 @@ def install_fakes():
 
 
 def restore_modules(previous_modules):
+    """Restore sys.modules so fake Qt modules do not leak into other tests."""
     for module_name, previous_module in previous_modules.items():
         if previous_module is MISSING_MODULE:
             sys.modules.pop(module_name, None)
@@ -187,10 +207,12 @@ def restore_modules(previous_modules):
             sys.modules[module_name] = previous_module
 
 
+# Capture existing modules so this file can temporarily replace Qt during import.
 previous_modules = {module_name: sys.modules.get(module_name, MISSING_MODULE) for module_name in FAKED_MODULE_NAMES}
 
 install_fakes()
 
+# Import the production module once against the fake Qt modules.
 sys.modules.pop("gui.views.components.game_attempt_board", None)
 game_attempt_board = importlib.import_module("gui.views.components.game_attempt_board")
 sys.modules.pop("gui.views.components.game_attempt_board", None)
@@ -207,6 +229,7 @@ Color = FakeColor
 
 
 def test_feedback_peg_init_and_state_changes():
+    """FeedbackPeg starts empty and transitions through black, white, and empty."""
     peg = FeedbackPeg()
 
     assert peg.state == FeedbackPeg.EMPTY
@@ -227,6 +250,7 @@ def test_feedback_peg_init_and_state_changes():
 
 
 def test_feedback_peg_paint_event_branches_do_not_crash():
+    """paintEvent supports empty, black, and white peg states without crashing."""
     peg = FeedbackPeg()
 
     peg.paintEvent(None)
@@ -239,6 +263,7 @@ def test_feedback_peg_paint_event_branches_do_not_crash():
 
 
 def test_feedback_widget_creates_five_pegs_and_sets_feedback():
+    """FeedbackWidget creates five pegs, applies black/white counts, and resets."""
     widget = FeedbackWidget()
 
     assert len(widget.pegs) == NUM_SLOTS
@@ -259,6 +284,7 @@ def test_feedback_widget_creates_five_pegs_and_sets_feedback():
 
 
 def test_guess_widget_sets_slots_active_slot_and_reset():
+    """GuessWidget writes colors, marks one active slot, and clears all slots."""
     widget = GuessWidget()
     colors = [Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, Color.ORANGE]
 
@@ -284,6 +310,7 @@ def test_guess_widget_sets_slots_active_slot_and_reset():
 
 
 def test_attempt_row_delegates_to_guess_and_feedback():
+    """AttemptRow coordinates guess slots and feedback pegs for one board row."""
     row = AttemptRow()
 
     row.set_slot_selected(1)
@@ -311,6 +338,7 @@ def test_attempt_row_delegates_to_guess_and_feedback():
 
 
 def test_attempts_board_creates_rows_and_updates_attempts():
+    """AttemptsBoard creates all rows and delegates updates to the requested row."""
     board = AttemptsBoard()
 
     assert board.current_row == 0

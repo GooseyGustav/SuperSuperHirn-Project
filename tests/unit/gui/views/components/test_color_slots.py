@@ -17,11 +17,15 @@ MISSING_MODULE = object()
 
 
 class FakeRect:
+    """Small QRect double used by ColorSlot.paintEvent border calculations."""
+
     def adjusted(self, *args):
         return self
 
 
 class FakeWidget:
+    """QWidget double that records sizing and repaint requests."""
+
     def __init__(self, *args, **kwargs):
         self._min_w = 0
         self._min_h = 0
@@ -55,6 +59,8 @@ class FakeWidget:
 
 
 class FakeQt:
+    """Subset of Qt enum values used by ColorSlot.paintEvent."""
+
     class PenStyle:
         NoPen = "NoPen"
 
@@ -63,11 +69,15 @@ class FakeQt:
 
 
 class FakeQColor:
+    """QColor double that keeps the requested color value inspectable."""
+
     def __init__(self, value):
         self.value = value
 
 
 class FakeQPainter:
+    """QPainter double that records drawing calls made by paintEvent."""
+
     last_instance = None
 
     class RenderHint:
@@ -95,6 +105,7 @@ class FakeQPainter:
 
 
 def install_fakes():
+    """Install fake Qt modules before importing the ColorSlot module."""
     pyqt6 = types.ModuleType("PyQt6")
 
     qtcore = types.ModuleType("PyQt6.QtCore")
@@ -114,6 +125,7 @@ def install_fakes():
 
 
 def restore_modules(previous_modules):
+    """Restore sys.modules so fake Qt modules do not leak into other tests."""
     for module_name, previous_module in previous_modules.items():
         if previous_module is MISSING_MODULE:
             sys.modules.pop(module_name, None)
@@ -121,10 +133,12 @@ def restore_modules(previous_modules):
             sys.modules[module_name] = previous_module
 
 
+# Capture any real modules first so the fake import can be undone afterwards.
 previous_modules = {module_name: sys.modules.get(module_name, MISSING_MODULE) for module_name in FAKED_MODULE_NAMES}
 
 install_fakes()
 
+# Import production code once while PyQt imports point to the fakes above.
 sys.modules.pop("gui.views.components.color_slots", None)
 color_slots = importlib.import_module("gui.views.components.color_slots")
 sys.modules.pop("gui.views.components.color_slots", None)
@@ -195,7 +209,7 @@ class TestColorSlot:
     # ---------- paintEvent ----------
 
     def test_paint_event_uses_lightgray_fill_for_empty_slot(self):
-        """paintEvent paints an empty slot with the neutral fill color."""
+        """paintEvent paints an empty slot with neutral fill and black border."""
         slot = ColorSlot()
 
         slot.paintEvent(None)
@@ -207,7 +221,7 @@ class TestColorSlot:
         assert len(painter.ellipses) == 2
 
     def test_paint_event_uses_color_map_fill_for_colored_slot(self):
-        """paintEvent paints a colored slot with the mapped color value."""
+        """paintEvent resolves a selected Color through COLOR_MAP before painting."""
         slot = ColorSlot()
         slot.set_color(Color.ORANGE)
 
@@ -217,7 +231,7 @@ class TestColorSlot:
         assert painter.brushes[0].value == COLOR_MAP[Color.ORANGE]
 
     def test_paint_event_uses_yellow_border_for_selected_slot(self):
-        """paintEvent paints selected slots with a yellow border."""
+        """paintEvent switches the border color to yellow for selected slots."""
         slot = ColorSlot()
         slot.set_selected(True)
 

@@ -15,6 +15,8 @@ MISSING_MODULE = object()
 
 
 class FakeSignal:
+    """pyqtSignal replacement that records every emitted argument tuple."""
+
     def __init__(self, *args):
         self.emitted_values = []
 
@@ -23,11 +25,15 @@ class FakeSignal:
 
 
 class FakeQObject:
+    """QObject replacement; only construction is relevant for the emitter."""
+
     def __init__(self, *args, **kwargs):
         pass
 
 
 class FakeQMutex:
+    """QMutex replacement that counts lock and unlock calls."""
+
     def __init__(self):
         self.lock_count = 0
         self.unlock_count = 0
@@ -40,6 +46,8 @@ class FakeQMutex:
 
 
 class FakeQWaitCondition:
+    """QWaitCondition replacement that records wait targets and wake calls."""
+
     def __init__(self):
         self.waited_with = []
         self.wake_all_count = 0
@@ -55,6 +63,8 @@ class FakeQWaitCondition:
 
 
 class FakeColor(IntEnum):
+    """Minimal Color enum replacement with the same integer values as production."""
+
     RED = 1
     GREEN = 2
     YELLOW = 3
@@ -66,6 +76,7 @@ class FakeColor(IntEnum):
 
 
 def install_fakes():
+    """Install fake PyQt and Color modules before importing the GUI adapter."""
     pyqt6 = types.ModuleType("PyQt6")
 
     qtcore = types.ModuleType("PyQt6.QtCore")
@@ -83,6 +94,7 @@ def install_fakes():
 
 
 def restore_modules(previous_modules):
+    """Restore sys.modules so fake modules do not leak into other tests."""
     for module_name, previous_module in previous_modules.items():
         if previous_module is MISSING_MODULE:
             sys.modules.pop(module_name, None)
@@ -90,10 +102,12 @@ def restore_modules(previous_modules):
             sys.modules[module_name] = previous_module
 
 
+# Capture existing modules so the fake import can be fully undone afterwards.
 previous_modules = {module_name: sys.modules.get(module_name, MISSING_MODULE) for module_name in FAKED_MODULE_NAMES}
 
 install_fakes()
 
+# Import the production adapter once while PyQt and Color point to the fakes.
 sys.modules.pop(
     "adapter.driven_adapter.for_getting_codebreaker_move.gui.gui_codebreaker",
     None,
