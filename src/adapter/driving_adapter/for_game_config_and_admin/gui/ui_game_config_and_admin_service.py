@@ -30,7 +30,7 @@ class UiGameConfigAndAdminAdapter():
 
     def on_abort_game(self) -> None:
         self.for_game_administration.abort_game()
-    
+
     def on_exit_application(self) -> None:
         pass
 

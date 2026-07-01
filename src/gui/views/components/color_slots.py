@@ -20,7 +20,7 @@ class ColorSlot(QWidget):
         self.setFixedSize(30, 30)
         self.color = None
         self.selected = False
-    
+
     def set_selected(self, selected: bool):
         self.selected = selected
         self.update()
@@ -28,7 +28,7 @@ class ColorSlot(QWidget):
     def set_color(self, color):
         self.color = color
         self.update()
-    
+
     def reset_color(self):
         self.color = None
         self.update()
@@ -45,11 +45,9 @@ class ColorSlot(QWidget):
         painter.drawEllipse(self.rect())
 
         # Border circle
-        painter.setPen(QColor("black"))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))
-
         if self.selected:
             painter.setPen(QColor("yellow"))
         else:
             painter.setPen(QColor("black"))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))
