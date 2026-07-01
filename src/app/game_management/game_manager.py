@@ -63,6 +63,7 @@
 import ipaddress
 import logging
 import sys
+import threading
 from urllib.parse import urlparse
 
 from app.game_management.game_config_management.config_manager import ConfigManager
@@ -171,7 +172,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_enabled = True
         self._network_address = network_address
         self._gamer_id = gamer_id
-        self._configure_and_run()
+        game_thread = threading.Thread(target=self._configure_and_run, daemon=True)
+        game_thread.start()
         # does not persist on purpose
 
     def resume_interrupted(self) -> None:
