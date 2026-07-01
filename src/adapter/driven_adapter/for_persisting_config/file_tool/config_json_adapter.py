@@ -1,4 +1,5 @@
 import json
+import logging
 from json import JSONDecodeError
 from pathlib import Path
 
@@ -96,13 +97,21 @@ class ConfigJsonAdapter(ForPersistingConfig):
         Args:
             config_dict (dict): The game config as a dictionary.
         """
-        self._write_json_dict(self.config_file_path, config_dict)
+        try:
+            self._write_json_dict(self.config_file_path, config_dict)
+        except OSError:
+            logging.error("Failed to save config.", exc_info=True)
+            raise
 
     def reset_to_default(self) -> None:
         """Reset current and default config files to the hardcoded defaults."""
         default_config = self.DEFAULT_CONFIG.copy()
-        self._write_json_dict(self.default_file_path, default_config)
-        self._write_json_dict(self.config_file_path, default_config)
+        try:
+            self._write_json_dict(self.default_file_path, default_config)
+            self._write_json_dict(self.config_file_path, default_config)
+        except OSError:
+            logging.error("Failed to reset to default config.", exc_info=True)
+            raise
 
     def _load_default_config(self) -> dict:
         """Load the default config or recreate it from hardcoded defaults."""
