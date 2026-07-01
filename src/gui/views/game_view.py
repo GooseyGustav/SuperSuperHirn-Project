@@ -27,12 +27,12 @@ class GameView(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
         self.submit_enabled = False
-        self.codemaker_mode: str = mode
+        self.player_mode: str = mode
         self._setup_layout()
         self._setup_ui_admin_stuff()
-        self._setup_secret_code()
+        self._setup_secret_code(self.player_mode)
         self._setup_attempts_board()
-        self._setup_color_picker(self.codemaker_mode)
+        self._setup_color_picker(self.player_mode)
     
     def _setup_layout(self):
         outer_layout = QVBoxLayout(self)
@@ -43,10 +43,11 @@ class GameView(QWidget):
         self.margin_layout = QVBoxLayout(self.margin_widget)
         self.margin_layout.setSpacing(8)
 
-        self.ui_admin_stuff  = QWidget()
-        self.secret_code     = QWidget()
-        self.attempts_board  = QWidget()
-        self.color_picker    = QWidget()
+        self.ui_admin_stuff = QWidget()
+        if self.player_mode in ("secret", "guess"):
+            self.secret_code = QWidget()
+        self.attempts_board = QWidget()
+        self.color_picker = QWidget()
 
         self.margin_layout.addWidget(self.ui_admin_stuff,  10)
         self.margin_layout.addWidget(self.secret_code,     10)
@@ -101,7 +102,10 @@ class GameView(QWidget):
         layout.addLayout(left_layout, 3)   # 60%
         layout.addLayout(right_layout, 2)  # 40%
 
-    def _setup_secret_code(self):
+    def _setup_secret_code(self, mode):
+        if mode in ("guess"):
+            return
+        
         self.secret_code.setStyleSheet("background: #E67E22;")
 
         layout = QHBoxLayout(self.secret_code)
