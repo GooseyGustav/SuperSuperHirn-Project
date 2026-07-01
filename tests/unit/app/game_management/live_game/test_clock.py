@@ -1,5 +1,5 @@
-import pytest
 from app.game_management.live_game.clock import Clock
+
 
 class TestClock:
     def test_clock_initialization(self):
@@ -11,7 +11,7 @@ class TestClock:
     def test_start_clock_execution(self):
         clock = Clock(max_time_millis=1000)
         # Assuming empty implementation doesn't raise errors
-        clock.start_clock() 
+        clock.start_clock()
 
     def test_interrupt_game_timeout_execution(self):
         clock = Clock(max_time_millis=1000)

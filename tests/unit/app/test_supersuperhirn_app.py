@@ -1,22 +1,23 @@
-import pytest
 from unittest.mock import MagicMock
-from app.supersuperhirn_app import SupersuperhirnApp
+
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
 from app.ports.driving.for_configuring_game import ForConfiguringGame
 from app.ports.driving.for_game_administration import ForGameAdministration
+from app.supersuperhirn_app import SupersuperhirnApp
+
 
 class TestSupersuperhirnApp:
     def setup_method(self):
         self.mock_persisting_game = MagicMock(spec=ForPersistingGame)
         self.mock_persisting_config = MagicMock(spec=ForPersistingConfig)
         self.mock_assembling_players = MagicMock(spec=ForAssemblingPlayers)
-        
+
         self.app = SupersuperhirnApp(
             for_persisting_game=self.mock_persisting_game,
             for_persisting_config=self.mock_persisting_config,
-            for_assembling_players=self.mock_assembling_players
+            for_assembling_players=self.mock_assembling_players,
         )
 
     def test_app_initializes_game_manager_with_ports(self):
