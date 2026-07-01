@@ -25,12 +25,6 @@ class HomeController:
         self.home_view.credits_requested.connect(self._go_to_credits)
 
     def _new_game(self):
-        from gui.controllers.game_ui_controller import GameController
-
-        self.ui_service_adapter.on_start_game()
-        self.game_ctrl = GameController()
-
-    def _new_game_updated(self):
         from gui.controllers.codemaker_controller import GameCodemakerController
         from gui.controllers.game_ui_controller import GameController
         from gui.controllers.observer_controller import GameObserverController
