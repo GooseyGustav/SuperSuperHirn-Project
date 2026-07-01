@@ -102,10 +102,10 @@ class HomeView(QWidget):
 
         btn_game_new = QPushButton("New Game")
         btn_game_new.setObjectName("PrimaryButton")
-        self.btn_game_continue = QPushButton("Resume Game")
+        btn_game_continue = QPushButton("Resume Game")
         btn_network_game = QPushButton("Network Game")
 
-        for btn in (btn_game_new, self.btn_game_continue, btn_network_game):
+        for btn in (btn_game_new, btn_game_continue, btn_network_game):
             self._style_button(btn)
             play_layout.addWidget(btn)
 
@@ -135,7 +135,7 @@ class HomeView(QWidget):
         root_layout.addWidget(content)
 
         # signal wiring (unchanged)
-        self.btn_game_continue.clicked.connect(self.game_continue_requested.emit)
+        btn_game_continue.clicked.connect(self.game_continue_requested.emit)
         btn_game_new.clicked.connect(self.game_new_requested.emit)
         btn_network_game.clicked.connect(self.network_game_requested.emit)
         btn_settings.clicked.connect(self.settings_requested.emit)

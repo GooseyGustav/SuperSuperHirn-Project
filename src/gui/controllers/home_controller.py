@@ -17,8 +17,6 @@ class HomeController:
 
         self._connect_events()
 
-        self.home_view.btn_game_continue.setEnabled(False)
-
     def _connect_events(self):
         self.home_view.game_continue_requested.connect(self._continue_game)
         self.home_view.game_new_requested.connect(self._new_game)
@@ -49,8 +47,6 @@ class HomeController:
 
             case _:
                 raise ValueError(f"Unknown user_role: {role}")
-
-        self.home_view.btn_game_continue.setEnabled(True)
 
     def _continue_game(self):
         from gui.controllers.game_ui_controller import GameController
