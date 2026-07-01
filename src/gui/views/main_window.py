@@ -10,6 +10,10 @@ class MainWindow(QMainWindow):
         self.ui_service_adapter = ui_service_adapter
         self.player_adapter: dict = None
         self.translator = None
+        self.setStyleSheet("background-color: PapayaWhip")
+
+        self.setMinimumHeight(550)
+        self.setMaximumHeight(550)
 
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)

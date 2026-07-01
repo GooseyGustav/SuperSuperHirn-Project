@@ -44,13 +44,14 @@ class GameView(QWidget):
         self.margin_layout.setSpacing(8)
 
         self.ui_admin_stuff = QWidget()
-        if self.player_mode in ("secret", "guess"):
+        if self.player_mode in ("secret", "feedback"):
             self.secret_code = QWidget()
         self.attempts_board = QWidget()
         self.color_picker = QWidget()
 
         self.margin_layout.addWidget(self.ui_admin_stuff, 10)
-        self.margin_layout.addWidget(self.secret_code, 10)
+        if self.player_mode in ("secret", "feedback"):
+            self.margin_layout.addWidget(self.secret_code, 10)
         self.margin_layout.addWidget(self.attempts_board, 70)
         self.margin_layout.addWidget(self.color_picker, 10)
 
