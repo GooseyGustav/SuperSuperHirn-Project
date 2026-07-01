@@ -16,7 +16,8 @@ variables:
 
 before_script:
   - apt-get update
-  - apt-get install -y libgl1 libglib2.0-0 libxkbcommon0 libegl1
+  - apt-get install -y
+    libgl1 libglib2.0-0 libdbus-1-3 libxkbcommon0 libegl1 libxcb1 libx11-6 libxrender1 libsm6 libice6
   - pip install -e .[dev]
 
 flake8:
