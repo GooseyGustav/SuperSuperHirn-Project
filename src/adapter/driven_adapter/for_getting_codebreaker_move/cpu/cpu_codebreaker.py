@@ -73,10 +73,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
 
     # ---------- Candidate filtering ----------
 
-    def _calc_candidates(
-        self,
-        attempt_list: list[Attempt]
-    ) -> list[Code]:
+    def _calc_candidates(self, attempt_list: list[Attempt]) -> list[Code]:
         """
         Reduce the current candidate space by applying every recorded attempt in
         sequence.
@@ -104,12 +101,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         self._remaining_candidates = candidates
         return candidates
 
-    def _filter_by_exact_feedback(
-        self,
-        candidates: list[Code],
-        guess: Code,
-        feedback: Feedback
-    ) -> list[Code]:
+    def _filter_by_exact_feedback(self, candidates: list[Code], guess: Code, feedback: Feedback) -> list[Code]:
         """
         Keep only candidates that would produce exactly the same final feedback
         (black peg count and white peg count) if `guess` were evaluated against
@@ -117,16 +109,12 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         """
         expected_black, expected_white = self._feedback_to_counts(feedback)
         return [
-            code for code in candidates
+            code
+            for code in candidates
             if self._calc_candidate_guess_final_match(code, guess) == [expected_black, expected_white]
         ]
 
-    def _filter_by_provisional_feedback(
-        self,
-        candidates: list[Code],
-        guess: Code,
-        feedback: Feedback
-    ) -> list[Code]:
+    def _filter_by_provisional_feedback(self, candidates: list[Code], guess: Code, feedback: Feedback) -> list[Code]:
         """
         Keep only candidates whose total number of matching colors equals the
         number of pegs present in the provisional feedback.
@@ -135,10 +123,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         and white pegs, only the total number of matches is considered.
         """
         total_pegs = len(feedback)
-        return [
-            code for code in candidates
-            if self._calc_candidate_guess_provisional_match(code, guess) == total_pegs
-        ]
+        return [code for code in candidates if self._calc_candidate_guess_provisional_match(code, guess) == total_pegs]
 
     # ---------- Helpers ----------
 
@@ -200,10 +185,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         return black, white
 
     @staticmethod
-    def _calc_candidate_guess_final_match(
-        secret: Code,
-        guess: Code
-    ) -> list[int]:
+    def _calc_candidate_guess_final_match(secret: Code, guess: Code) -> list[int]:
         """
         Compute the exact Mastermind score for a candidate secret code and a
         guess.
@@ -233,10 +215,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
         return [black, white]
 
     @staticmethod
-    def _calc_candidate_guess_provisional_match(
-        secret: Code,
-        guess: Code
-    ) -> int:
+    def _calc_candidate_guess_provisional_match(secret: Code, guess: Code) -> int:
         """
         Compute the total number of color matches between a candidate secret and
         a guess, ignoring position.
@@ -258,10 +237,7 @@ class CpuCodebreaker(ForGettingCodebreakerMove):
 
     _MINIMAX_SAMPLE_THRESHOLD = 200
 
-    def _select_minimax_guess(
-        self,
-        candidates: list[Code]
-    ) -> Code:
+    def _select_minimax_guess(self, candidates: list[Code]) -> Code:
         """
         Select the next guess using a Knuth-style minimax strategy.
 

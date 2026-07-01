@@ -1,8 +1,8 @@
-from gui.views.main_window import MainWindow
 from gui.views.config_view import ConfigView
+from gui.views.main_window import MainWindow
 
 
-class ConfigController():
+class ConfigController:
     """Controller for the game configuration screen.
 
     Connects ConfigView signals to the service adapter (ForConfiguringGame port).

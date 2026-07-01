@@ -1,10 +1,10 @@
+from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
-from app.game_model.color_code.code import Code
+from app.game_model.player_attempts.attempt import Attempt
 from app.game_model.player_attempts.feedback import Feedback
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 from app.game_model.player_attempts.guess import Guess
-from app.game_model.player_attempts.attempt import Attempt
 
 
 def make_guess(*color_ids: int) -> Guess:

@@ -1,5 +1,5 @@
-import pytest
 from unittest.mock import MagicMock
+
 from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import (
     UiGameConfigAndAdminAdapter,
 )
