@@ -1,6 +1,7 @@
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_management.live_game.clock import Clock
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
@@ -20,7 +21,6 @@ class GameEngine:
     # deleted file mentioned in docstring GameSessionManager per modification of
     # Class Reference and Diagram, following discussion with Marlon that it was
     # unnecessary because GameManagement and GameEngine seem to cover everything.
-    # If necessary TODO: reinstate GameSessionManager for threading in TIME_TRIAL (?)
 
     def __init__(self, game_config: Config) -> None:
         self.game_config = game_config
@@ -195,29 +195,29 @@ class GameEngine:
             (Shape defined by ForPersistingGame.save_game()/load_game()).
         """
 
-        # TODO : handle corrupt persisted data:
-        #  the game_data[...] / attempt_row[...] / fb[...] accesses can raise KeyError (missing keys),
-        #  and Color()/FeedbackStatus()/ _assert_code_legal can raise ValueError on a corrupt/malformed save.
-        #  These currently propagate UNHANDLED — corrupt-persist handling is a separate deferred decision.
-
         code_length = CodeConstants.NUMBER_OF_PINS
 
         self.game = Game(game_mode=self.game_config.gamemode, code_length=code_length, game_state=Gamestate.INTERRUPTED)
 
-        # Secret code restored for local games.
-        # If ever wished for network games: the remote codemaker owns it.
-        if not self.game_config.network_enabled:
-            secret_code_list = game_data["secret_code"]
-            self._assert_code_legal(secret_code_list)
-            self.game.set_secret_code(secret_code_list)
+        try:
+            # Secret code restored for local games.
+            # If ever wished for network games: the remote codemaker owns it.
+            if not self.game_config.network_enabled:
+                secret_code_list = game_data["secret_code"]
+                self._assert_code_legal(secret_code_list)
+                self.game.set_secret_code(secret_code_list)
 
-        for attempt_row in game_data["attempt_list"]:
-            guess_as_list = attempt_row["guess"]
-            self._assert_code_legal(guess_as_list)
-            guess_object = Guess(Code((code_length, [Slot(Color(c)) for c in guess_as_list])))
-            fb = attempt_row["feedback"]
-            feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
-            self.game.attempt_list.append(Attempt(guess_object, feedback_object))
+            for attempt_row in game_data["attempt_list"]:
+                guess_as_list = attempt_row["guess"]
+                self._assert_code_legal(guess_as_list)
+                guess_object = Guess(Code((code_length, [Slot(Color(c)) for c in guess_as_list])))
+                fb = attempt_row["feedback"]
+                feedback_object = Feedback(fb["black_pins"], fb["white_pins"], FeedbackStatus(fb["status"]))
+                self.game.attempt_list.append(Attempt(guess_object, feedback_object))
+        except (KeyError, ValueError, TypeError) as e:
+            # KeyError: missing key; ValueError: bad enum, not legal; TypeError: non int Color()/Feedback()
+            # All combined as one type
+            raise CorruptedSaveError(f"Corrupt save: {e}") from e
 
     def get_game_obj(self) -> Game | None:
         """Returns the current game object."""
