@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (QWidget, QPushButton, QVBoxLayout,
+from PyQt6.QtWidgets import (QDoubleSpinBox, QWidget, QPushButton, QVBoxLayout,
 QHBoxLayout, QLabel, QComboBox, QSpinBox)
 
 from PyQt6.QtCore import pyqtSignal
@@ -31,20 +31,28 @@ class ConfigView(QWidget):
 
         # --- Countdown - only meaningful in TIME_TRIAL, disabled otherwise ---
         layout.addWidget(QLabel("Countdown (ms) - TIME_TRIAL only:"))
-        self._spin_countdown = QSpinBox()
-        self._spin_countdown.setRange(1000, 60000)
-        self._spin_countdown.setSingleStep(500)
-        self._spin_countdown.setValue(10000)
-        self._spin_countdown.setEnabled(False)  # disabled until TIME_TRIAL selected
+        
+        self._spin_countdown = QDoubleSpinBox()
+        self._spin_countdown.setRange(1.0, 60.0)
+        self._spin_countdown.setSingleStep(0.1)
+        self._spin_countdown.setDecimals(1)
+        self._spin_countdown.setSuffix(" s")
+        self._spin_countdown.setValue(10.0)
+        self._spin_countdown.setEnabled(False)
+
         layout.addWidget(self._spin_countdown)
 
         # --- Delay - only meaningful in OBSERVER role, disabled otherwise ---
-        layout.addWidget(QLabel("Delay (ms) - OBSERVER only:"))
-        self._spin_delay = QSpinBox()
-        self._spin_delay.setRange(100, 5000)
-        self._spin_delay.setSingleStep(100)
-        self._spin_delay.setValue(300)
-        self._spin_delay.setEnabled(False)  # disabled until OBSERVER selected
+        layout.addWidget(QLabel("Delay (s) - OBSERVER only:"))
+
+        self._spin_delay = QDoubleSpinBox()
+        self._spin_delay.setRange(0.1, 5.0)
+        self._spin_delay.setSingleStep(0.1)
+        self._spin_delay.setDecimals(1)
+        self._spin_delay.setSuffix(" s")
+        self._spin_delay.setValue(0.3)
+        self._spin_delay.setEnabled(False)
+
         layout.addWidget(self._spin_delay)
 
         # wire combo changes to enable/disable dependent spinboxes
@@ -80,11 +88,11 @@ class ConfigView(QWidget):
         not configured here, and GameManager overwrites this field at game-start anyway.
         """
         self.config_save_requested.emit({
-            "gamemode":         self._combo_gamemode.currentText(),
-            "user_role":        self._combo_role.currentText(),
-            "network_enabled":  False,
-            "countdown_millis": self._spin_countdown.value(),
-            "delay_millis":     self._spin_delay.value(),
+            "gamemode": self._combo_gamemode.currentText(),
+            "user_role": self._combo_role.currentText(),
+            "network_enabled": False,
+            "countdown_millis": int(self._spin_countdown.value() * 1000),
+            "delay_millis": int(self._spin_delay.value() * 1000),
         })
 
     def populate(self, config_dict: dict):
