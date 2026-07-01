@@ -12,19 +12,28 @@ class Slot:
         self.color = color
 
     def is_empty(self) -> bool:
-        """Return True if no color has been assigned to this slot yet."""
+        """Return True if no color has been assigned to this slot yet.
+
+        Returns:
+            bool: True if the slot is empty, otherwise False.
+        """
+
         return self.color is None
 
     def set_color(self, color_id: int) -> None:
         """Assign a color to this slot by its integer ID (1–8).
 
-        Raises ValueError if color_id does not map to a known Color.
+        Args:
+            color_id (int): ID as an integer representing a color.
         """
+
         self.color = Color(color_id)
 
     def get_color(self) -> Color:
         """Return the Color currently held by this slot.
 
-        Raises AttributeError if the slot is empty — check is_empty() first.
+        Returns:
+            Color: The color a slot holds.
         """
+
         return self.color

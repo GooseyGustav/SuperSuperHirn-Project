@@ -9,6 +9,7 @@ description = "SuperSuperHirn_13"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "requests>=2.32.0,<3.0.0"
 ]
 
 [project.scripts]
@@ -22,7 +23,8 @@ dev = [
     "flake8>=7.0.0",
     "Flake8-pyproject>=1.2.3", # enables flake8 to read this file
     "radon>=6.0.0",
-    "pre-commit>=3.7.0" # enables pre-commit pipeline
+    "pre-commit>=3.7.0", # enables pre-commit pipeline
+    "PyQt6>=6.11.0",
 ]
 
 # --- Build Configuration ---

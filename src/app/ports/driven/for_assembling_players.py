@@ -29,8 +29,14 @@ class ForAssemblingPlayers(ABC):
                     "delay_millis":        int,
                     "number_of_positions": int,   # fixed constant, app-injected (5) (board size/code length)
                     "number_of_colors":    int,   # fixed constant, app-injected (8)
+                    "network_address":     str,  #  url or "<ip>:<port>" only for network game; None if local
+                    "gamer_id":            str,  # only for network game; None if local
                 }
 
         Returns:
             this round's two player adapters.
+
+        Raises:
+            ValueError: invalid user role choice or players assembly configuration.
+            ConnectionError: network connection failure (network "handshake" for network game failed).
         """

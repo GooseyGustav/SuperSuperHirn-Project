@@ -74,9 +74,7 @@ class GameEngine:
         self.game: Game | None = None
         # Clock is only created for TIME_TRIAL; None in all other modes.
         self.clock: Clock | None = (
-            Clock(game_config.countdown_millis)
-            if game_config.gamemode == Gamemode.TIME_TRIAL
-            else None
+            Clock(game_config.countdown_millis) if game_config.gamemode == Gamemode.TIME_TRIAL else None
         )
 
     def run(self, codemaker, codebreaker) -> Game:
@@ -144,11 +142,15 @@ class GameEngine:
             # VERSION FOR INT LIST
             if nr_of_black_pins == CodeConstants.NUMBER_OF_PINS:
                 self.game.game_state = Gamestate.WON
+                if self.game.game_mode == Gamemode.BLIND_TRIAL:
+                    self.game.convert_provision_to_final()
                 break
 
             # Loss condition: Maximum number of attempts reached
             if len(self.game.attempt_list) >= Game.MAX_ATTEMPTS:
                 self.game.game_state = Gamestate.LOST_ATTEMPTS
+                if self.game.game_mode == Gamemode.BLIND_TRIAL:
+                    self.game.convert_provision_to_final()
                 break
 
         # Defensive catch: Mark game as interrupted if loop exited via flag
@@ -169,7 +171,10 @@ class GameEngine:
         for attempt in self.game.attempt_list:
             guess_pegs = [pin.get_color().value for pin in attempt.get_guess().get_code_guess().get_code()]
             fb = attempt.get_feedback()
-            feedback_pegs = [8] * fb.black_pins + [7] * fb.white_pins
+            if fb.get_status() == FeedbackStatus.PROVISIONAL:
+                feedback_pegs = [7] * (fb.black_pins + fb.white_pins)
+            else:
+                feedback_pegs = [8] * fb.black_pins + [7] * fb.white_pins
             board.append((guess_pegs, feedback_pegs, fb.get_status().value))
         return board
 
@@ -209,7 +214,9 @@ class GameEngine:
             "max_attempts": Game.MAX_ATTEMPTS,
             "secret_code": secret,
             "attempt_list": attempt_rows,
-            "remaining_time_millis": self.game_config.countdown_millis if self.game_config.gamemode == Gamemode.TIME_TRIAL else 0,
+            "remaining_time_millis": (
+                self.game_config.countdown_millis if self.game_config.gamemode == Gamemode.TIME_TRIAL else 0
+            ),
             "matchup": {
                 "gamemode": self.game_config.gamemode.value,
                 "user_role": self.game_config.user_role.value,
@@ -234,6 +241,11 @@ class GameEngine:
             collected by the GameManager from the ForPersistingGame port.
             (Shape defined by ForPersistingGame.save_game()/load_game()).
         """
+
+        # TODO : handle corrupt persisted data:
+        #  the game_data[...] / attempt_row[...] / fb[...] accesses can raise KeyError (missing keys),
+        #  and Color()/FeedbackStatus()/ _assert_code_legal can raise ValueError on a corrupt/malformed save.
+        #  These currently propagate UNHANDLED — corrupt-persist handling is a separate deferred decision.
 
         code_length = CodeConstants.NUMBER_OF_PINS
 
@@ -263,23 +275,34 @@ class GameEngine:
         """Returns the current game object."""
         return self.game
 
-    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
+    # On raise Error during run(): GameManager catches (ValueError, TypeError)
+    # and aborts the round without saving.
     @staticmethod
     def _assert_code_legal(code: list[int]) -> None:
         """Validate the raw code list from a port that represents a secret code or guess."""
+        if not isinstance(code, list):
+            raise ValueError("Code must be a list of integers.")
+
+        if not all(isinstance(c, int) and not isinstance(c, bool) for c in code):
+            raise ValueError("Code must contain only integers.")
+
         if len(code) != CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Invalid code length: expected {CodeConstants.NUMBER_OF_PINS} pins.")
 
         if not all(1 <= c <= CodeConstants.NUMBER_OF_COLORS for c in code):
             raise ValueError("Code contains invalid color integers.")
 
-    # TODO: Was nach Error raised passiert wurde muss noch geklärt werden.
-    # TODO: Brauchen evtl noch KeyError --> noted not needed in meting
+    # On raise Error during run(): GameManager catches (ValueError, TypeError)
+    # and aborts the round without saving.
     @staticmethod
     def _assert_feedback_legal(feedback: list[int]) -> None:
         """Validate the feedback as peg list from the codemaker port
         (7 = white, 8 = black)."""
+        if not isinstance(feedback, list):
+            raise ValueError("Feedback must be a list of integers.")
+
+        if not all(isinstance(f, int) and not isinstance(f, bool) for f in feedback):
+            raise ValueError("Feedback must contain only integers.")
 
         if len(feedback) > CodeConstants.NUMBER_OF_PINS:
             raise ValueError(f"Feedback length cannot exceed {CodeConstants.NUMBER_OF_PINS} pins.")

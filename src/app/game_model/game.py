@@ -80,6 +80,7 @@ class Game:
             RuntimeError: If no attempts remain.
             RuntimeError: If another attempt is already waiting for feedback.
         """
+
         if self.game_state != Gamestate.RUNNING:
             raise RuntimeError("A guess can only be set while the game is running.")
 
@@ -104,7 +105,7 @@ class Game:
         to `attempt_list` and `current_attempt` is reset to None.
 
         Args:
-            feedback (list[int]): feedback as a list of integers
+            feedback (list[int]): Feedback as a list of peg colors, where 7 = white and 8 = black
         """
 
         if self.current_attempt is None:
@@ -112,11 +113,11 @@ class Game:
 
         self._validate_feedback(feedback)
 
-        # set previuous attempts in attempt_list to FINAL
+        # set previous attempts in attempt_list to FINAL
         if self.game_mode == Gamemode.BLIND_TRIAL:
             self.convert_provision_to_final()
 
-        # current attmept is PROVISIONAL if game mode is Blind Trial, else its Final
+        # current attempt is PROVISIONAL if game mode is Blind Trial, else its Final
         status = FeedbackStatus.PROVISIONAL if self.game_mode == Gamemode.BLIND_TRIAL else FeedbackStatus.FINAL
 
         feedback_obj = Feedback(feedback[0], feedback[1], status)
@@ -129,8 +130,9 @@ class Game:
 
         This is relevant for Blind Trial mode. It iterates through all attempts in attempt_list and sets the status on
         FINAL. This method is called in set_feedback() right before the new feedback of the current attempt is set.
-        Therefore all previous attepmts will be set FINAL and the newest attempt will be PROVISIONAL.
+        Therefore all previous attempts will be set FINAL and the newest attempt will be PROVISIONAL.
         """
+
         # for safety
         for attempt in self.attempt_list:
             feedback = attempt.get_feedback()
@@ -143,6 +145,7 @@ class Game:
         Returns:
             Gamemode: current game mode
         """
+
         return self.game_mode
 
     def set_game_state(self, game_state: Gamestate) -> None:
@@ -156,6 +159,7 @@ class Game:
         Raises:
             TypeError: If `game_state` is not a Gamestate.
         """
+
         if not isinstance(game_state, Gamestate):
             raise TypeError("Game state must be a Gamestate.")
 
@@ -163,6 +167,7 @@ class Game:
 
     def _validate_code(self, code: list[int], code_name: str) -> None:
         """Helper function to validate codes as lists of integers."""
+
         if not isinstance(code, list):
             raise TypeError(f"{code_name} must be provided as a list of integers.")
 
@@ -180,6 +185,7 @@ class Game:
 
     def _validate_feedback(self, feedback: list[int]) -> None:
         """Helper function to validate a feedback as list of integers"""
+
         if not isinstance(feedback, list):
             raise TypeError("Feedback must be provided as a list of integers.")
 

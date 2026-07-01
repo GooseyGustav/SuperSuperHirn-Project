@@ -46,6 +46,13 @@ from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGam
 #                     "remaining_time_millis": int,  # TIME_TRIAL only; milliseconds
 #                     "matchup": dict,             # opaque to the core, round-tripped only
 #                 }
+#
+
+# number constants
+COUNTDOWN_MILLIS_DEFAULT = 15000
+DELAY_MILLIS_DEFAULT = 500
+COUNTDOWN_MILLIS_ZERO = 0
+DELAY_MILLIS_ZERO = 0
 
 
 @pytest.fixture
@@ -74,8 +81,19 @@ def valid_config_dict():
         "gamemode": "CLASSIC",
         "user_role": "CODEMAKER",
         "network_enabled": False,
-        "countdown_millis": 15,
-        "delay_millis": 5,
+        "countdown_millis": COUNTDOWN_MILLIS_DEFAULT,
+        "delay_millis": DELAY_MILLIS_DEFAULT,
+    }
+
+
+@pytest.fixture
+def config_dict_valid_network_on():
+    return {
+        "gamemode": "CLASSIC",
+        "user_role": "CODEBREAKER",
+        "network_enabled": True,
+        "countdown_millis": COUNTDOWN_MILLIS_ZERO,
+        "delay_millis": DELAY_MILLIS_ZERO,
     }
 
 
@@ -182,12 +200,195 @@ def test_start_game_runs_and_persists(
     persist_game_port_mock,
     valid_config_dict,
 ):
+
+    # Arrange
     persist_config_port_mock.load_config_dict.return_value = valid_config_dict
     codemaker, codebreaker = MagicMock(), MagicMock()
     assembling_players_port_mock.assemble_players.return_value = (codemaker, codebreaker)
     engine = mock_engine_class.return_value
     engine.create_game_persist_object.return_value = {"gamestate": "WON"}
+
+    # Act
     game_manager.start_game()
+
+    # Assert
     engine.run.assert_called_once_with(codemaker, codebreaker)
     engine.create_game_persist_object.assert_called_once()
     persist_game_port_mock.save_game.assert_called_once_with({"gamestate": "WON"})
+
+
+@pytest.mark.parametrize("run_error", [ValueError("illegal move"), TypeError("not a list")])
+@patch("app.game_management.game_manager.GameEngine")
+def test_start_game_illegal_move_aborts_without_saving(
+    mock_engine_class,
+    run_error,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    engine = mock_engine_class.return_value
+    engine.run.side_effect = run_error  # illegal move flagged by engine
+
+    # Act
+    game_manager.start_game()  # should not raise error (abort handled internally)
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+    assert game_manager._config_manager is None
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_resume_interrupted_illegal_move_aborts_without_saving(
+    mock_engine_class,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    persist_game_port_mock.load_game.return_value = {"matchup": {}}
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+    engine = mock_engine_class.return_value
+    engine.run.side_effect = ValueError("illegal move")
+
+    # Act
+    game_manager.resume_interrupted()
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+
+
+# ----- GameManager: _normalize_address -----
+
+
+@pytest.mark.parametrize(
+    "incoming_address, expected_normalized_address",
+    [
+        ("1.2.3.4:8080", "http://1.2.3.4:8080"),  # add http scheme to IP:port
+        ("example.com:9000", "http://example.com:9000"),  # add http scheme to hostname:port
+        ("supersuperhirn-online.org", "http://supersuperhirn-online.org"),  # add http scheme to hostname
+        ("  1.2.3.4:8080  ", "http://1.2.3.4:8080"),  # strip whitepspaces and add http scheme
+        ("http://x.com", "http://x.com"),  # incoming http scheme preserved
+        ("https://x.com", "https://x.com"),  # incoming https scheme preserved
+    ],
+)
+def test_normalize_address_valid_addresses(incoming_address, expected_normalized_address):
+    assert GameManager._normalize_address(incoming_address) == expected_normalized_address
+
+
+@pytest.mark.parametrize("empty_address", ["", "   ", None])
+def test_normalize_address_empty_raises(empty_address):
+    with pytest.raises(ValueError, match="empty"):
+        GameManager._normalize_address(empty_address)
+
+
+# ----- GameManager: _validate_normalized_network_address (input already normalized, has "http(s)://") -----
+
+
+@pytest.mark.parametrize(
+    "valid_address",
+    [
+        "http://1.2.3.4:8080",
+        "http://141.45.39.64:5001",
+        "http://example.com:9000",
+        "http://supersuperhirn-online.org",
+    ],
+)
+def test_validate_valid_addresses_no_raise(valid_address):
+    GameManager._validate_normalized_network_address(valid_address)
+
+
+@pytest.mark.parametrize(
+    "invalid_address, error_message",
+    [
+        ("http://1.2.3.4", "port"),
+        ("http://1.2.3.4:8080:8080", "port"),
+        ("http://1.2.3.4:abc", "port"),
+        ("http://supersuperhirn-online.org:abc", "port"),
+        ("http://", "host"),
+    ],
+)
+def test_validate_bad_addresses_raises(invalid_address, error_message):
+    with pytest.raises(ValueError, match=error_message):
+        GameManager._validate_normalized_network_address(invalid_address)
+
+
+# ----- GameManager: verify GameManager catches/raises errors as it should -----
+
+
+def _wire_mockies_and_patchies_with_fixtures(
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    some_config_dict,
+):
+    persist_config_port_mock.load_config_dict.return_value = some_config_dict
+    assembling_players_port_mock.assemble_players.return_value = (MagicMock(), MagicMock())
+
+
+@patch("app.game_management.game_manager.ConfigManager")
+@patch("app.game_management.game_manager.GameEngine")
+def test_run_connection_error_reraised_to_caller_through_driving_port(
+    game_engine_mock,
+    config_manager_mock,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    config_dict_valid_network_on,
+):
+    _wire_mockies_and_patchies_with_fixtures(
+        game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
+    )
+
+    game_engine_mock.return_value.run.side_effect = ConnectionError("lost")
+
+    with pytest.raises(ConnectionError):
+        game_manager.start_network_game("1.2.3.4:8080", "team13")
+
+
+@patch("app.game_management.game_manager.ConfigManager")
+@patch("app.game_management.game_manager.GameEngine")
+def test_run_illegal_move_value_error_caught_by_game_manager_internally(
+    game_engine_mock,
+    config_manager_mock,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    config_dict_valid_network_on,
+):
+    _wire_mockies_and_patchies_with_fixtures(
+        game_manager, persist_config_port_mock, assembling_players_port_mock, config_dict_valid_network_on
+    )
+
+    game_engine_mock.return_value.run.side_effect = ValueError("illegal move")
+
+    # no raise! (internal catch)
+    game_manager.start_network_game("1.2.3.4:8080", "team13")
+    assert game_manager._game_engine is None  # check clean up was done
+
+
+@patch("app.game_management.game_manager.ConfigManager")
+@patch("app.game_management.game_manager.GameEngine")
+def test_assemble_players_connection_error_reraised_to_caller_through_driving_port(
+    game_engine_mock,
+    config_manager_mock,
+    game_manager,
+    persist_config_port_mock,
+    assembling_players_port_mock,
+    config_dict_valid_network_on,
+):
+    persist_config_port_mock.load_config_dict.return_value = config_dict_valid_network_on
+    assembling_players_port_mock.assemble_players.side_effect = ConnectionError("unreachable")
+    with pytest.raises(ConnectionError):
+        game_manager.start_network_game("1.2.3.4:8080", "team13")

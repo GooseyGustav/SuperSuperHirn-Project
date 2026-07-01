@@ -8,15 +8,15 @@ class ForGettingCodemakerMove(ABC):
     Codebreaker's latest guess.
 
     Color IDs for pins of the secret code and feedback:
-    1=Red, 2=Green, 3=Yello, 4=Blue, 5=Orange, 6=Brown, 7=White, 8=Black
+    1=Red, 2=Green, 3=Yellow, 4=Blue, 5=Orange, 6=Brown, 7=White, 8=Black
 
     Note:
         The caller does not enforce the correctness of the feedback;
         mistaken or deliberately misleading feedback can be given.
 
     Note (project implementation):
-        - Implemented by the Codemaker Adapters (src/adapter/driven_adapter/for_getting_codemaker_mov).
-        - Implemented for testing App by `FakeCodemakerAdapter` (src/adapter/driven_adapter/for_getting_codemaker_mov).
+        - Implemented by the Codemaker Adapters (src/adapter/driven_adapter/for_getting_codemaker_move).
+        - Implemented for testing App by `FakeCodemakerAdapter` (src/adapter/driven_adapter/for_getting_codemaker_move).
         - Specific Codemaker Adapter for game round instantiated based on
             game config by `Matchmaker` (src/startup).
         - Methods called by: `GameEngine` (src/app/game_management).
@@ -27,8 +27,7 @@ class ForGettingCodemakerMove(ABC):
         """Returns the Codemaker's secret code to the app at the beginning of the game.
 
         Returns:
-            the Codemaker's secret code as a list of ints (length constraints:
-            => 1 and =< 9).
+            the Codemaker's secret code as a list of ints.
         """
 
     @abstractmethod
@@ -38,12 +37,13 @@ class ForGettingCodemakerMove(ABC):
 
         Args:
             secret: the Codemaker's secret code as a list of ints
-                    (length constraints: => 1 and =< 9, = length of list returned by get_secret_code())
             guess: the Codebreaker's latest guess as a list of ints
-                    (length constraints: guess.len() = secret.len()).
+            (Length of both: number_of_positions; number_of_positions: injected in constructor by the Matchmaker.)
 
         Returns:
-            the feedback pins as a list [number-of-BLACK-pins, number-of-WHITE-pins]
-            or if game_mode = BLIND_TRIAL:
-            [number-of-BLACK-pins, number-of-WHITE-pins, guess-status]
+            the feedback as a peg list of color ints (7 = white, 8 = black),
+            e.g. [8, 8, 7] for a guess with 2 black pegs and 1 white peg.
+            (Length: 0..number_of_positions;  number_of_positions: injected in constructor by the Matchmaker.)
+            peg position in list is not relevant.
+            (Provisional/final status is not returned here, as that is set by the model.)
         """
