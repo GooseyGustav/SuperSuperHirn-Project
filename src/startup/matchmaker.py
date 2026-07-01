@@ -27,15 +27,6 @@ OBSERVER = "OBSERVER"
 
 class Matchmaker(ForAssemblingPlayers):
 
-    # default for network test to build http url
-    # change here
-    PORT = 8080
-    PATH = "/"
-
-    # For the network test, in case use CLI driver
-    # DEFAULT_SERVER_URL = "http://SALINGERSIP:HIER"
-    # DEFAULT_GAMER_ID = "team13"
-
     def __init__(self, gui_callback=None):
         # self._player_adapter: dict = {} # unused (direct call)
         self._gui_callback = gui_callback  # in diagram/class ref.: "onGuiGameStart"
@@ -58,19 +49,23 @@ class Matchmaker(ForAssemblingPlayers):
                     "delay_millis":        int,
                     "number_of_positions": int,   # fixed constant, app-injected (5) (board size/code length)
                     "number_of_colors":    int,   # fixed constant, app-injected (8)
-                    "ip_address":          str,  # only for network game; None if local
+                    "network_address":     str,  #  url or "<ip>:<port>" only for network game; None if local
                     "gamer_id":            str,  # only for network game; None if local
                 }
 
         Returns:
             this round's two player adapters.
+
+        Raises:
+            ValueError: invalid user role choice or players assembly configuration.
+            ConnectionError: network connection failure (network "handshake" for network game failed).
         """
 
         network_enabled = config["network_enabled"]
         user_role = config["user_role"]  # str per Port contract (from app enum `Role`)
         number_of_positions = config["number_of_positions"]
         number_of_colors = config["number_of_colors"]
-        ip_address = config.get("ip_address")
+        network_address = config.get("network_address")
         gamer_id = config.get("gamer_id")
 
         # TODO: make sure that guard is in GameManager._validate_config
@@ -82,7 +77,7 @@ class Matchmaker(ForAssemblingPlayers):
         match user_role:
             case "CODEBREAKER":
                 cpu_or_net_codemaker = (
-                    self._network_codemaker(ip_address, gamer_id, number_of_positions, number_of_colors)
+                    self._network_codemaker(network_address, gamer_id, number_of_positions, number_of_colors)
                     if network_enabled
                     else CpuCodemaker()
                 )
@@ -104,23 +99,12 @@ class Matchmaker(ForAssemblingPlayers):
                 raise ValueError(f"Unsupported user_role: {user_role}")  # TODO: catch that error
 
     def _network_codemaker(
-        self, ip_address: str, gamer_id: str, number_of_positions: int, number_of_colors: int
+        self, network_address: str, gamer_id: str, number_of_positions: int, number_of_colors: int
     ) -> NetworkCodemaker:
-        server_url = self._build_url(ip_address)
-        self._network_manager = NetworkManager(server_url)  # default timeout = 5
-        # nwk adapter cotr:
-        # __init__(self, network_manager: NetworkManager, gamerid: str, positions: int, colors: int)
+        self._network_manager = NetworkManager(network_address)  # default timeout = 5
         network_codemaker = NetworkCodemaker(self._network_manager, gamer_id, number_of_positions, number_of_colors)
         network_codemaker.start_network_session()
         return network_codemaker
-
-    # parse IP in proper URL for network manager
-    def _build_url(self, ip_address: str) -> str:
-        if ip_address is not None:
-            if ip_address.startswith(("http://", "https://")):
-                return ip_address
-            return f"http://{ip_address}:{self.PORT}{self.PATH}"
-        raise ValueError(f"No ip_address supplied: {ip_address}")  # TODO catch
 
     def _notify_gui_callback(self, player_adapter: dict):
         if self._gui_callback is not None:

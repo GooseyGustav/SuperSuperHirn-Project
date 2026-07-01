@@ -15,13 +15,27 @@ class Attempt:
         self.feedback = feedback
 
     def get_guess(self) -> Guess:
-        """Return the Guess that was made in this attempt."""
+        """Return the Guess that was made in this attempt.
+
+        Returns:
+            Guess: The guess of the attempt.
+        """
+
         return self.guess
 
     def get_feedback(self) -> Feedback:
-        """Return the Feedback currently associated with this attempt."""
+        """Return the Feedback currently associated with this attempt.
+
+        Returns:
+            Feedback: The Feedback of the attempt.
+        """
+
         return self.feedback
 
     def set_feedback(self, feedback: Feedback) -> None:
-        """Replace the feedback, e.g. when a provisional result is finalised."""
+        """Replace the feedback, e.g. when a provisional result is finalized.
+
+        Args:
+            feedback (Feedback): New feedback that replaces the current feedback.
+        """
         self.feedback = feedback

@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class Color(Enum):
-    """Emumeration of supported colors for the secret code and guesses.
+    """Enumeration of supported colors for the secret code and guesses.
 
     Use `ENUM_OBJECT.value` to access the numeric value and `ENUM_OBJECT.name` to access the color name
     as a string.

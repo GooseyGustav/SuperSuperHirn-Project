@@ -125,3 +125,6 @@ local_files/
 
 # vscode
 .vscode/settings.json
+
+# Local Persistency data
+**/file_tool/*.json
