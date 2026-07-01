@@ -19,7 +19,8 @@ class HomeController:
 
     def _connect_events(self):
         self.home_view.game_continue_requested.connect(self._continue_game)
-        self.home_view.game_new_requested.connect(self._new_game_updated)
+        self.home_view.game_new_requested.connect(self._new_game)
+        self.home_view.network_game_requested.connect(self._go_to_network_setup)
         self.home_view.settings_requested.connect(self._go_to_settings)
         self.home_view.credits_requested.connect(self._go_to_credits)
 
@@ -57,7 +58,7 @@ class HomeController:
     def _continue_game(self):
         from gui.controllers.game_ui_controller import GameController
 
-        self.ui_service_adapter.on_start_network_game("123.123.123.123", "1")
+        self.ui_service_adapter.on_resume_interrupted()
         self.game_ctrl = GameController()
 
     def _go_to_settings(self):
@@ -69,3 +70,36 @@ class HomeController:
         from gui.controllers.credits_controller import CreditsController
 
         self.credits_ctrl = CreditsController()
+
+    def _go_to_network_setup(self) -> None:
+        """Open the network configuration view."""
+        from ..views.network_config_view import NetworkConfigView
+
+        self.network_view = NetworkConfigView()
+        MainWindow.instance().register_view("network_setup", self.network_view)
+        MainWindow.instance().navigate_to("network_setup")
+
+        # connect the view's signals
+        self.network_view.cancel_requested.connect(lambda: MainWindow.instance().navigate_to("home"))
+        self.network_view.start_requested.connect(self._start_network_game)
+
+    def _start_network_game(self, address: str, gamer_id: str) -> None:
+        """Start the network game and handle potential connection errors."""
+        from PyQt6.QtWidgets import QMessageBox
+
+        from gui.controllers.game_ui_controller import GameController
+
+        try:
+            # pass the data to the adapter (and thus to the GameManager)
+            self.ui_service_adapter.on_start_network_game(address, gamer_id)
+
+            # if no errors occur, initialize the GameController to start the game view
+            self.game_ctrl = GameController()
+
+        except (ConnectionError, ValueError) as e:
+            # catch exceptions from the GameManager or NetworkCodemaker
+            QMessageBox.critical(
+                self.network_view,
+                "Connection Error",
+                f"The network game could not be started:\n\n{e}",
+            )
