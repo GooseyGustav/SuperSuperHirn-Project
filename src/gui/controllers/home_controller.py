@@ -85,7 +85,7 @@ class HomeController:
 
     # ---------- Config & Timer Methods ----------
 
-    def _start_network_game(self, address: str, gamer_id: str) -> None:
+    def _start_network_game(self, address: str, gamer_id: str, role: str) -> None:
         """
         Starts the network game and waits for the background thread to be ready.
 
@@ -97,16 +97,14 @@ class HomeController:
         from PyQt6.QtWidgets import QMessageBox
 
         try:
-            print("DEBUG: Calling adapter (Backend is connecting in the background...)")
-            self.ui_service_adapter.on_start_network_game(address, gamer_id)
+            self.ui_service_adapter.on_start_network_game(address, gamer_id, role)
 
-            # Start a QTimer to check every 100 milliseconds if the core is ready.
+            # start a QTimer to check every 100 milliseconds if the core is ready
             self.ready_timer = QTimer()
             self.ready_timer.timeout.connect(self._check_if_core_is_ready)
             self.ready_timer.start(100)
 
         except Exception as e:
-            print(f"DEBUG CAUGHT EXCEPTION: {e}")
             QMessageBox.critical(
                 self.network_view,
                 "Connection Error",
@@ -117,12 +115,12 @@ class HomeController:
         """Called every 100ms until the core has initialized the player_adapter."""
         from gui.controllers.game_ui_controller import GameController
 
-        # Once the player_adapter is no longer None, the core has finished its setup.
+        # once the player_adapter is no longer None, the core has finished its setup
         if MainWindow.instance().player_adapter is not None:
 
-            # Stop the timer immediately so it does not trigger again.
+            # stop the timer immediately so it does not trigger again
             self.ready_timer.stop()
             print("DEBUG: Core is ready! Adapter found. Loading the game board now...")
 
-            # Safely instantiate the GameController now that dependencies exist.
+            # safely instantiate the GameController now that dependencies exist
             self.game_ctrl = GameController(is_network=True)
