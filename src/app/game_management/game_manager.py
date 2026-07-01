@@ -1,6 +1,7 @@
 import ipaddress
 import logging
 import sys
+import threading
 from urllib.parse import urlparse
 
 from app.game_management.game_config_management.config_manager import ConfigManager
@@ -82,7 +83,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._gamer_id = None
         self.executor.run(self._configure_and_run)
 
-    def start_network_game(self, network_address: str, gamer_id: str) -> None:
+    def start_network_game(self, network_address: str, gamer_id: str, role: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
         network address and provides the User's Gamer ID. The implementer is responsible for
         validating the network address and gamer ID.
@@ -90,6 +91,7 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         Args:
             network_address: IP:port or URL ("http://" or "https://" optional.)
             gamer_id: the user's gamer ID
+            role: the user's role in the game (CODEBREAKER or OBSERVER)
 
         Raises:
             ValueError: data or protocol failure :
@@ -109,7 +111,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._network_enabled = True
         self._network_address = network_address
         self._gamer_id = gamer_id
-        self._configure_and_run()
+        self._user_role = role
+        game_thread = threading.Thread(target=self._configure_and_run, daemon=True)
+        game_thread.start()
         # does not persist on purpose
 
     def resume_interrupted(self) -> None:
@@ -172,6 +176,9 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             codemaker, codebreaker = self._assembling_players_port.assemble_players(
                 players_config_for_players_assembling_port
             )
+            if self._network_enabled and getattr(self, "_user_role", None) == "OBSERVER":
+                print("Observer mode active: Switching to CPU Codebreaker.")
+                codebreaker = self._cpu_codebreaker_adapter
         except (ValueError, TypeError, ConnectionError) as e:
             logging.warning("Error assembling players: %s", e)
             self._game_engine = None

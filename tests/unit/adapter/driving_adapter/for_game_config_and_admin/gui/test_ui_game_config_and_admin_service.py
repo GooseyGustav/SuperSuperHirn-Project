@@ -50,8 +50,9 @@ class TestUiGameConfigAndAdminAdapter:
     def test_on_start_network_game_delegates(self):
         test_ip = "127.0.0.1"
         test_id = 123
-        self.adapter.on_start_network_game(test_ip, test_id)
-        self.mock_admin_port.start_network_game.assert_called_once_with(test_ip, test_id)
+        test_role = "CODEBREAKER"
+        self.adapter.on_start_network_game(test_ip, test_id, test_role)
+        self.mock_admin_port.start_network_game.assert_called_once_with(test_ip, test_id, test_role)
 
     def test_on_resume_interrupted(self):
         # The method currently has `pass`, but we can verify it executes without error.
