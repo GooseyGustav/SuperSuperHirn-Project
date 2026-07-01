@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.game_management.game_manager import GameManager
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.game_state import Gamestate
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
@@ -267,6 +268,44 @@ def test_resume_interrupted_illegal_move_aborts_without_saving(
     engine.run.side_effect = ValueError("illegal move")
 
     # Act
+    game_manager.resume_interrupted()
+
+    # Assert
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+
+
+@patch("app.game_management.game_manager.GameEngine")
+def test_resume_interrupted_corrupt_save_raises_and_resets(
+    mock_engine_class,
+    game_manager,
+    persist_config_port_mock,
+    persist_game_port_mock,
+    valid_config_dict,
+):
+    # Arrange
+    persist_config_port_mock.load_config_dict.return_value = valid_config_dict
+    persist_game_port_mock.load_game.return_value = {"matchup": {}}
+    engine = mock_engine_class.return_value
+    engine.resume.side_effect = CorruptedSaveError("corrupt save")
+
+    # Act / Assert
+    with pytest.raises(CorruptedSaveError):
+        game_manager.resume_interrupted()
+
+    persist_game_port_mock.save_game.assert_not_called()
+    assert game_manager._game_engine is None
+    assert game_manager._config_manager is None
+
+
+def test_resume_interrupted_missing_save_returns_quietly(
+    game_manager,
+    persist_game_port_mock,
+):
+    # Arrange
+    persist_game_port_mock.load_game.side_effect = FileNotFoundError
+
+    # Act (must not raise)
     game_manager.resume_interrupted()
 
     # Assert
@@ -549,16 +588,13 @@ def test_exit_application_interrupts_and_exits(game_manager, game_state):
     game_manager._persist_game_port.assert_not_called()
 
 
-# TODO decide: keep decision to overwrite previous interrupted?
-def test_exit_application_saves_interrupted_then_exits(game_manager, persist_game_port_mock):
+def test_exit_application_aborts_without_saving(game_manager, persist_game_port_mock):
     engine = MagicMock()
-    # engine switches state when GameManager.interrupt_game() is called
     engine.get_game_obj.return_value.game_state = Gamestate.INTERRUPTED
-    engine.create_game_persist_object.return_value = {"gamestate": Gamestate.INTERRUPTED}
     game_manager._game_engine = engine
 
     with pytest.raises(SystemExit):
         game_manager.exit_application()
 
-    engine.interrupt_game.assert_called_once()
-    persist_game_port_mock.save_game.assert_called_once_with({"gamestate": Gamestate.INTERRUPTED})
+    engine.interrupt_game.assert_called_once()  # abort_game
+    persist_game_port_mock.save_game.assert_not_called()

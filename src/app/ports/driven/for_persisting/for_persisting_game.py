@@ -56,6 +56,9 @@ class ForPersistingGame(ABC):
                    --> `GameEngine.createGamePersistObject(): dict`
                    --> GameManager receives this dict from GameEngine
                    --> GameManager passes it on to the Game-Persisting Adapter as the `game_data` (dict).
+
+        Raises:
+            OSError: write failure.
         """
 
     @abstractmethod
@@ -63,6 +66,11 @@ class ForPersistingGame(ABC):
         """Loads the game data from an external location and returns it to the App
         as a dictionary (same shape as `save_game()`).
         Core App will perform validation.
+
+        Raises:
+            CorruptedSaveError: file exists but JSON is malformed.
+            FileNotFoundError: no save exists (caller treats as "nothing to resume").
+            OSError: read failure (permission / disk).
         """
 
     @abstractmethod

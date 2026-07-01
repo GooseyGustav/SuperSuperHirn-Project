@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
+from app.game_management.save_errors import CorruptedSaveError
 from app.game_management.thread_executor import ThreadExecutor
 from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
@@ -121,11 +122,17 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
 
         self._network_enabled = False
 
-        # TODO: handle corrupt-persist: load_game() + GameEngine.resume() (called inside _configure_and_run)
-        #  can raise ValueError AND KeyError on a corrupt save. Not caught here yet.
-        #  This is the eventual catch spot (kept separate from the run() illegal-move catch).
-        game_data = self._persist_game_port.load_game()
-        self._configure_and_run(game_data)
+        try:
+            game_data = self._persist_game_port.load_game()
+            self._configure_and_run(game_data)
+        except FileNotFoundError:
+            logging.info("No saved game to resume.")
+            return
+        except CorruptedSaveError:
+            self._game_engine = None
+            self._config_manager = None
+            logging.warning("Corrupt save detected; cannot resume.", exc_info=True)
+            raise  # TODO: GUI soll anbieten : delete and start new
 
     def _configure_and_run(self, game_data: dict | None = None) -> None:
         """Shared flow for start game/resume interrupted to set up and run a
@@ -137,8 +144,14 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         Engine.run() continues the existing, saved game instead of creating a new game.
 
         Raises:
+            ValueError: invalid config or corrupt matchup on resume (re-validated here).
+            ConnectionError: network handshake / assemble failure.
+            CorruptedSaveError: engine.resume() on a malformed save.
 
-
+        Note:
+            Illegal move during run() (ValueError/TypeError) is swallowed, then quiet abort,
+            no save.
+            (On threaded start_game these do NOT reach the caller (worker thread)) # TODO solve thread issue
         """
         # get config for all elements
         config_dict = self.load_config()  # load from save config JSON
@@ -206,7 +219,10 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         """Starts the game and deletes the interrupted game (clears the board and
         starts a new game).
         """
-        self._persist_game_port.delete_game()
+        try:
+            self._persist_game_port.delete_game()
+        except OSError:
+            logging.warning("Could not delete old game. Starting new game anyway.", exc_info=True)
         self.start_game()
 
     def interrupt_game(self) -> None:
@@ -245,13 +261,11 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self.start_game()
 
     def exit_application(self) -> None:
-        """Exits the application (closes the entire program), saving the
-        current game beforehand.
-
-        # TODO decide: keep decision to overwrite previous interrupted?
+        """Exits the application (closes the entire program). If there is a game
+        currently running, it is simply aborted (not saved).
         """
-        if self._game_engine is not None:
-            self.interrupt_game()
+        if self._game_engine is not None:  # redundant, but prefer explicit call at call
+            self.abort_game()
         sys.exit()
 
     # ForConfiguringGame methods
