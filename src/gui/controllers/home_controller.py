@@ -111,6 +111,12 @@ class HomeController:
         # once the player_adapter is no longer None, the core has finished its setup
         if MainWindow.instance().player_adapter is not None:
 
+            role = self.ui_service_adapter.on_load_config().get("user_role")
+            if role == "OBSERVER":
+                print("Observer role detected. Starting observer game in background.")
+            else:
+                self.game_ctrl = GameController(is_network=True)
+
             # stop the timer immediately so it does not trigger again
             self.ready_timer.stop()
 

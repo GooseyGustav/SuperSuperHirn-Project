@@ -90,10 +90,14 @@ class Matchmaker(ForAssemblingPlayers):
                 self._notify_gui_callback({"codemaker": gui_codemaker, "codebreaker": None})
                 return gui_codemaker, cpu_codebreaker
             case "OBSERVER":
-                cpu_codemaker = CpuCodemaker()
+                cpu_or_net_codemaker = (
+                    self._network_codemaker(network_address, gamer_id, number_of_positions, number_of_colors)
+                    if network_enabled
+                    else CpuCodemaker()
+                )
                 cpu_codebreaker = CpuCodebreaker()
-                self._notify_gui_callback({"codemaker": cpu_codemaker, "codebreaker": cpu_codebreaker})
-                return cpu_codemaker, cpu_codebreaker
+                self._notify_gui_callback({"codemaker": cpu_or_net_codemaker, "codebreaker": cpu_codebreaker})
+                return cpu_or_net_codemaker, cpu_codebreaker
             case _:
                 raise ValueError(f"Unsupported user_role: {user_role}")  # TODO: catch that error
 
