@@ -10,7 +10,6 @@ class GameView(QWidget):
     # ----- Admin Events -----
     exit_game_no_save_pressed = pyqtSignal()
     exit_game_save_pressed = pyqtSignal()
-    restart_game_pressed = pyqtSignal()
     time_expired = pyqtSignal()
 
     # ----- Color Picker -----
@@ -220,7 +219,6 @@ class GameView(QWidget):
             is_network (bool): True if the current game is a network game.
         """
         self._btn_save_exit.setVisible(not is_network)
-        self._btn_restart.setVisible(not is_network)
 
     def start_timer(self, duration_ms: int) -> None:
         """
