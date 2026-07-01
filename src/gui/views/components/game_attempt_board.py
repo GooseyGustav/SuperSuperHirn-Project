@@ -1,15 +1,13 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+
 from gui.views.components.color import Color
 from gui.views.components.color_slots import ColorSlot
 
-NUM_ROWS  = 10
+NUM_ROWS = 10
 NUM_SLOTS = 5
 
-
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QColor
-from PyQt6.QtCore import Qt
 
 class FeedbackPeg(QWidget):
     BLACK = 1
@@ -32,7 +30,7 @@ class FeedbackPeg(QWidget):
     def reset(self):
         self.state = self.EMPTY
         self.update()
-    
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -65,6 +63,7 @@ class FeedbackPeg(QWidget):
 
 class FeedbackWidget(QWidget):
     """5 pegs: 3 on top row, 2 on bottom row."""
+
     def __init__(self):
         super().__init__()
         self.setFixedWidth(60)
@@ -94,6 +93,7 @@ class FeedbackWidget(QWidget):
 
 class GuessWidget(QWidget):
     """5 color slots arranged horizontally."""
+
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)
@@ -116,7 +116,7 @@ class GuessWidget(QWidget):
 
     def set_slot(self, index: int, color: Color):
         self.slots[index].set_color(color)
-    
+
     def set_active_slot(self, index: int):
         for i, slot in enumerate(self.slots):
             slot.set_selected(i == index)
@@ -143,7 +143,7 @@ class AttemptRow(QWidget):
         # Right: feedback pegs
         self.feedback = FeedbackWidget()
         layout.addWidget(self.feedback, stretch=1)
-    
+
     def set_slot_selected(self, index: int):
         self.guess.set_active_slot(index)
 

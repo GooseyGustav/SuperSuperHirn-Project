@@ -2,7 +2,7 @@ from app.ports.driving.for_configuring_game import ForConfiguringGame
 from app.ports.driving.for_game_administration import ForGameAdministration
 
 
-class UiGameConfigAndAdminAdapter():
+class UiGameConfigAndAdminAdapter:
     def __init__(self, for_configuring_game: ForConfiguringGame, for_game_administration: ForGameAdministration):
         self.for_configuring_game = for_configuring_game
         self.for_game_administration = for_game_administration
@@ -15,7 +15,7 @@ class UiGameConfigAndAdminAdapter():
 
     def on_reset_config(self) -> None:
         self.for_configuring_game.reset_config()
-    
+
     def on_start_game(self) -> None:
         self.for_game_administration.start_game()
 
@@ -30,7 +30,7 @@ class UiGameConfigAndAdminAdapter():
 
     def on_abort_game(self) -> None:
         self.for_game_administration.abort_game()
-    
+
     def on_exit_application(self) -> None:
         pass
 

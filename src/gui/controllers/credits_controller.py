@@ -1,5 +1,5 @@
-from gui.views.main_window import MainWindow
 from gui.views.credits_view import CreditsView
+from gui.views.main_window import MainWindow
 
 
 class CreditsController:

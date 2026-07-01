@@ -1,7 +1,9 @@
-import pytest
 import random
 
+import pytest
+
 from adapter.driven_adapter.for_getting_codemaker_move.cpu.cpu_codemaker import CpuCodemaker
+
 
 @pytest.fixture
 def codemaker():
@@ -18,6 +20,7 @@ def test_codemaker_cpu_secret_code_valid_length(codemaker):
     secret = codemaker.get_secret_code()
 
     assert len(secret) == 5
+
 
 def test_codemaker_cpu_secret_code_valid_type(codemaker):
     """
@@ -37,6 +40,7 @@ def test_codemaker_cpu_secret_code_valid_content(codemaker):
 
     secret = codemaker.get_secret_code()
     assert all(1 <= x <= 8 for x in secret)
+
 
 def test_codemaker_cpu_secret_code_double_color(codemaker):
     """
@@ -75,6 +79,7 @@ def test_codemaker_cpu_feedback_valid_content(codemaker):
     assert all(x in (7, 8) for x in feedback)
     assert len(feedback) <= 5
 
+
 def test_codemaker_cpu_feedback_full_match(codemaker):
     """
     Guess matches the secret code exactly -> 5 black pegs (8).
@@ -83,6 +88,7 @@ def test_codemaker_cpu_feedback_full_match(codemaker):
     guess = [1, 2, 3, 4, 5]
     feedback = codemaker.get_feedback(secret, guess)
     assert sorted(feedback) == [8, 8, 8, 8, 8]
+
 
 def test_codemaker_cpu_feedback_no_match(codemaker):
     """
@@ -93,6 +99,7 @@ def test_codemaker_cpu_feedback_no_match(codemaker):
     feedback = codemaker.get_feedback(secret, guess)
     assert feedback == []
 
+
 def test_codemaker_cpu_feedback_only_white_pegs(codemaker):
     """
     All colors exist but in wrong positions -> only white pegs (7).
@@ -102,6 +109,7 @@ def test_codemaker_cpu_feedback_only_white_pegs(codemaker):
     feedback = codemaker.get_feedback(secret, guess)
     assert sorted(feedback) == [7, 7, 7, 7, 7]
 
+
 def test_codemaker_cpu_feedback_mixed_black_and_white(codemaker):
     """
     Mix of correct color in correct position (black) and correct color in wrong position (white).
@@ -109,7 +117,8 @@ def test_codemaker_cpu_feedback_mixed_black_and_white(codemaker):
     secret = [1, 2, 3, 4, 5]
     guess = [1, 3, 2, 4, 6]
     feedback = codemaker.get_feedback(secret, guess)
-    assert sorted(feedback) == [7, 7, 8, 8] # 1|4 black, 2|3 white, 6 empty
+    assert sorted(feedback) == [7, 7, 8, 8]  # 1|4 black, 2|3 white, 6 empty
+
 
 def test_codemaker_cpu_feedback_duplicate_colors_in_guess_more_than_secret(codemaker):
     """
@@ -121,6 +130,7 @@ def test_codemaker_cpu_feedback_duplicate_colors_in_guess_more_than_secret(codem
     feedback = codemaker.get_feedback(secret, guess)
     assert sorted(feedback) == [8, 8]
 
+
 def test_codemaker_cpu_feedback_duplicate_colors_in_secret_more_than_guess(codemaker):
     """
     Secret contains a color multiple times, guess only once in right position.
@@ -131,6 +141,7 @@ def test_codemaker_cpu_feedback_duplicate_colors_in_secret_more_than_guess(codem
     feedback = codemaker.get_feedback(secret, guess)
     assert sorted(feedback) == [8]
 
+
 def test_codemaker_cpu_feedback_duplicate_colors_only_white(codemaker):
     """
     Secret and guess contain the same color multiple times, but mostly in different positions.
@@ -140,4 +151,3 @@ def test_codemaker_cpu_feedback_duplicate_colors_only_white(codemaker):
     guess = [2, 2, 1, 1, 3]
     feedback = codemaker.get_feedback(secret, guess)
     assert sorted(feedback) == [7, 7, 7, 7, 8]
-

@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 
 class HomeView(QWidget):

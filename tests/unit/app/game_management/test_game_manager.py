@@ -240,6 +240,7 @@ def test_start_game_illegal_move_aborts_without_saving(
 
     # Assert
     import time
+
     time.sleep(0.05)
 
     persist_game_port_mock.save_game.assert_not_called()

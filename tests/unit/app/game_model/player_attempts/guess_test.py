@@ -1,6 +1,6 @@
+from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
-from app.game_model.color_code.code import Code
 from app.game_model.player_attempts.guess import Guess
 
 

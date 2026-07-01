@@ -1,8 +1,8 @@
 import pytest
 
+from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
-from app.game_model.color_code.code import Code
 
 
 def make_code(*color_ids: int) -> Code:

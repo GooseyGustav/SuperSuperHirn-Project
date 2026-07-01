@@ -1,14 +1,12 @@
-from PyQt6.QtWidgets import (QWidget, QPushButton, QVBoxLayout,
-QHBoxLayout, QLabel, QComboBox, QSpinBox)
-
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 
 class ConfigView(QWidget):
-    back_requested = pyqtSignal()           # controller navigates back
-    config_load_requested = pyqtSignal()    # controller should load + populate
+    back_requested = pyqtSignal()  # controller navigates back
+    config_load_requested = pyqtSignal()  # controller should load + populate
     config_save_requested = pyqtSignal(dict)  # filled dict will be saved
-    config_reset_requested = pyqtSignal()   # adapter will reset to defaults
+    config_reset_requested = pyqtSignal()  # adapter will reset to defaults
 
     def __init__(self):
         super().__init__()
@@ -53,8 +51,8 @@ class ConfigView(QWidget):
 
         # --- Buttons row ---
         btn_row = QHBoxLayout()
-        btn_back  = QPushButton("Back")
-        btn_save  = QPushButton("Save Config")
+        btn_back = QPushButton("Back")
+        btn_save = QPushButton("Save Config")
         btn_reset = QPushButton("Reset Config")
 
         btn_back.clicked.connect(self.back_requested.emit)
@@ -79,13 +77,15 @@ class ConfigView(QWidget):
         network_enabled is always False here — network is started from the home screen,
         not configured here, and GameManager overwrites this field at game-start anyway.
         """
-        self.config_save_requested.emit({
-            "gamemode":         self._combo_gamemode.currentText(),
-            "user_role":        self._combo_role.currentText(),
-            "network_enabled":  False,
-            "countdown_millis": self._spin_countdown.value(),
-            "delay_millis":     self._spin_delay.value(),
-        })
+        self.config_save_requested.emit(
+            {
+                "gamemode": self._combo_gamemode.currentText(),
+                "user_role": self._combo_role.currentText(),
+                "network_enabled": False,
+                "countdown_millis": self._spin_countdown.value(),
+                "delay_millis": self._spin_delay.value(),
+            }
+        )
 
     def populate(self, config_dict: dict):
         """Fill all widgets from a loaded config dict (called by controller on load/reset)."""

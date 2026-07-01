@@ -1,7 +1,9 @@
+from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import (
+    UiGameConfigAndAdminAdapter,
+)
+
 from ..views.home_view import HomeView
 from ..views.main_window import MainWindow
-
-from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import UiGameConfigAndAdminAdapter
 
 
 class HomeController:
@@ -26,10 +28,10 @@ class HomeController:
 
         self.ui_service_adapter.on_start_game()
         self.game_ctrl = GameController()
-    
+
     def _new_game_updated(self):
-        from gui.controllers.game_ui_controller import GameController
         from gui.controllers.codemaker_controller import GameCodemakerController
+        from gui.controllers.game_ui_controller import GameController
         from gui.controllers.observer_controller import GameObserverController
 
         self.ui_service_adapter.on_start_game()

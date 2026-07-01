@@ -1,8 +1,6 @@
-from PyQt6.QtWidgets import (
-    QWidget, QPushButton, QVBoxLayout, QLabel, QFrame,
-)
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QFrame, QLabel, QPushButton, QVBoxLayout, QWidget
 
 
 class CreditsView(QWidget):
@@ -16,10 +14,10 @@ class CreditsView(QWidget):
     back_requested = pyqtSignal()
 
     # shared retro font used across all labels
-    _FONT_MONO   = QFont("Courier New", 10)
-    _FONT_TITLE  = QFont("Courier New", 16, QFont.Weight.Bold)
-    _FONT_NAME   = QFont("Courier New", 11, QFont.Weight.Bold)
-    _FONT_SMALL  = QFont("Courier New", 9)
+    _FONT_MONO = QFont("Courier New", 10)
+    _FONT_TITLE = QFont("Courier New", 16, QFont.Weight.Bold)
+    _FONT_NAME = QFont("Courier New", 11, QFont.Weight.Bold)
+    _FONT_SMALL = QFont("Courier New", 9)
 
     def __init__(self):
         super().__init__()
@@ -49,11 +47,11 @@ class CreditsView(QWidget):
         layout.addSpacing(6)
 
         team = [
-            ("Ky Anh",  "Head of Requirements Engineering"),
-            ("Elo",     "Head of Project Coordination"),
-            ("Marlon",  "Lead Developer"),
-            ("Felix",   "Software Architect"),
-            ("Matti",   "Head of Quality Assurance"),
+            ("Ky Anh", "Head of Requirements Engineering"),
+            ("Elo", "Head of Project Coordination"),
+            ("Marlon", "Lead Developer"),
+            ("Felix", "Software Architect"),
+            ("Matti", "Head of Quality Assurance"),
         ]
         for name, role in team:
             layout.addWidget(self._label(name, self._FONT_NAME))
@@ -69,7 +67,9 @@ class CreditsView(QWidget):
         layout.addWidget(self._rule())
 
         # --- GitLab link ---
-        link = QLabel('<a href="https://gitlab.rz.htw-berlin.de/Elodie.Viennot/sose26_superhirn_13">GitLab Repository</a>')
+        link = QLabel(
+            '<a href="https://gitlab.rz.htw-berlin.de/Elodie.Viennot/sose26_superhirn_13">GitLab Repository</a>'
+        )
         link.setAlignment(Qt.AlignmentFlag.AlignCenter)
         link.setFont(self._FONT_MONO)
         link.setOpenExternalLinks(True)  # opens in system browser on click

@@ -1,9 +1,9 @@
-from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QHBoxLayout, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from gui.views.components.color import Color
-from gui.views.components.game_attempt_board import AttemptsBoard, FeedbackWidget, GuessWidget
-from gui.views.components.color_slots import ColorSlot
+from gui.views.components.game_attempt_board import AttemptsBoard, GuessWidget
+
 
 class GameView(QWidget):
 
@@ -25,7 +25,7 @@ class GameView(QWidget):
     def __init__(self, mode: str, parent=None):
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        
+
         self.submit_enabled = False
         self.player_mode: str = mode
         self._setup_layout()
@@ -33,7 +33,7 @@ class GameView(QWidget):
         self._setup_secret_code(self.player_mode)
         self._setup_attempts_board()
         self._setup_color_picker(self.player_mode)
-    
+
     def _setup_layout(self):
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -49,19 +49,19 @@ class GameView(QWidget):
         self.attempts_board = QWidget()
         self.color_picker = QWidget()
 
-        self.margin_layout.addWidget(self.ui_admin_stuff,  10)
-        self.margin_layout.addWidget(self.secret_code,     10)
-        self.margin_layout.addWidget(self.attempts_board,  70)
-        self.margin_layout.addWidget(self.color_picker,    10)
+        self.margin_layout.addWidget(self.ui_admin_stuff, 10)
+        self.margin_layout.addWidget(self.secret_code, 10)
+        self.margin_layout.addWidget(self.attempts_board, 70)
+        self.margin_layout.addWidget(self.color_picker, 10)
 
         outer_layout.addWidget(self.margin_widget)
-    
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        h_margin = int(self.width()  * 0.03)
+        h_margin = int(self.width() * 0.03)
         v_margin = int(self.height() * 0.03)
         self.margin_layout.setContentsMargins(h_margin, v_margin, h_margin, v_margin)
-    
+
     # ── Boxes ─────────────────────────────────────────────────────────────────
 
     def _setup_ui_admin_stuff(self):
@@ -71,7 +71,7 @@ class GameView(QWidget):
         # Left side
         left_layout = QHBoxLayout()
 
-        left_layout.setContentsMargins(10, 10, 10, 10) 
+        left_layout.setContentsMargins(10, 10, 10, 10)
         left_layout.setSpacing(8)
 
         btn_no_save_exit = QPushButton("NoSaveExit")
@@ -99,13 +99,13 @@ class GameView(QWidget):
         right_layout.addWidget(QLabel("Bottom"))
 
         # Add layouts with stretch factors
-        layout.addLayout(left_layout, 3)   # 60%
+        layout.addLayout(left_layout, 3)  # 60%
         layout.addLayout(right_layout, 2)  # 40%
 
     def _setup_secret_code(self, mode):
         if mode in ("guess"):
             return
-        
+
         self.secret_code.setStyleSheet("background: #E67E22;")
 
         layout = QHBoxLayout(self.secret_code)
@@ -123,14 +123,16 @@ class GameView(QWidget):
 
         # Placeholder with same width as FeedbackWidget
         placeholder = QWidget()
-        placeholder.setFixedWidth(60)   # same as FeedbackWidget
+        placeholder.setFixedWidth(60)  # same as FeedbackWidget
         layout.addWidget(placeholder, stretch=1)
 
     def _setup_attempts_board(self):
-        self.attempts_board.setStyleSheet("""
+        self.attempts_board.setStyleSheet(
+            """
             background-color: BurlyWood;
             border: 3px solid red;
-        """)
+        """
+        )
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -155,37 +157,30 @@ class GameView(QWidget):
             for color in Color:
                 button = QPushButton(color.name.capitalize())
 
-                button.clicked.connect(
-                    lambda checked=False, c=color:
-                        self.color_selected.emit(c)
-                )
+                button.clicked.connect(lambda checked=False, c=color: self.color_selected.emit(c))
                 layout.addWidget(button)
 
         elif mode == "feedback":
             button_white = QPushButton("White")
-            button_white.clicked.connect(
-                lambda: self.color_selected.emit(Color.WHITE)
-            )
+            button_white.clicked.connect(lambda: self.color_selected.emit(Color.WHITE))
 
             button_black = QPushButton("Black")
-            button_black.clicked.connect(
-                lambda: self.color_selected.emit(Color.BLACK)
-            )
+            button_black.clicked.connect(lambda: self.color_selected.emit(Color.BLACK))
 
             layout.addWidget(button_white)
             layout.addWidget(button_black)
-        
-        submit_btn = QPushButton("Submit") 
-        submit_btn.clicked.connect(self.submit_pressed.emit) 
+
+        submit_btn = QPushButton("Submit")
+        submit_btn.clicked.connect(self.submit_pressed.emit)
         layout.addWidget(submit_btn)
-    
+
     def _clear_layout(self, layout):
         while layout.count():
             item = layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-    
+
     def set_submit_enabled(self, value: bool):
         self.submit_enabled = value
 

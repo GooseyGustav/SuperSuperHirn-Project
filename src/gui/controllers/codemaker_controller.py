@@ -1,12 +1,13 @@
+from adapter.driven_adapter.for_getting_codemaker_move.gui.gui_codemaker import GuiCodemaker
+from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import (
+    UiGameConfigAndAdminAdapter,
+)
+from gui.views.components.color import Color
 from gui.views.game_view import GameView
 from gui.views.main_window import MainWindow
-from gui.views.components.color import Color
-
-from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import UiGameConfigAndAdminAdapter
-from adapter.driven_adapter.for_getting_codemaker_move.gui.gui_codemaker import GuiCodemaker
 
 
-class GameCodemakerController():
+class GameCodemakerController:
 
     def __init__(self):
         self.codemaker_mode = "secret"
@@ -18,7 +19,7 @@ class GameCodemakerController():
         self.game_view = GameView(self.codemaker_mode)
         self.codemaker: GuiCodemaker = MainWindow.instance().player_adapter.get("codemaker")
         self.ui_service_adapter: UiGameConfigAndAdminAdapter = MainWindow.instance().ui_service_adapter
-        
+
         MainWindow.instance().register_view("game", self.game_view)
         MainWindow.instance().navigate_to("game")
 
@@ -36,11 +37,9 @@ class GameCodemakerController():
         self.game_view.key_enter_pressed.connect(self._on_submit)
         self.codemaker._qt_emitter.secret_code_requested.connect(self._on_secret_code_requested)
         self.codemaker._qt_emitter.feedback_requested.connect(self._on_feedback_requested)
-    
 
     def _on_secret_code_requested(self):
         pass
-        
 
     def _on_feedback_requested(self, secret: list[int], guess: list[int]):
         self.update_board_current_guess(guess)
@@ -51,9 +50,9 @@ class GameCodemakerController():
         print("exec1")
         self._update_board(attempt_list)
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
-        self.guess_list = []                        # clear previous guess
-        self.game_view.set_submit_enabled(True)     # optionally lock until ready
-        
+        self.guess_list = []  # clear previous guess
+        self.game_view.set_submit_enabled(True)  # optionally lock until ready
+
     def _update_board(self, attempt_list):
         for i, (_, feedback, _) in enumerate(attempt_list):
 
@@ -63,21 +62,18 @@ class GameCodemakerController():
             else:
                 black = feedback.count(8)
                 white = feedback.count(7)
-            
+
             print(white, "white", black, "black")
 
             self.game_view.game_attempt_board.set_feedback_slots(i, white, black)
-    
+
     def update_board_current_guess(self, guess: list[int]):
         row = self.round_index
 
         # update only the current row
         for col, value in enumerate(guess):
-            self.game_view.game_attempt_board.set_guess_slot(
-                row,
-                col,
-                value
-            )
+            self.game_view.game_attempt_board.set_guess_slot(row, col, value)
+
     def _handle_color_input(self, color: Color):
         if self.codemaker_mode in ("secret", "guess"):
             self._handle_secret_input(color)
@@ -92,7 +88,7 @@ class GameCodemakerController():
         self.game_view.secret_code_widget.set_guess(self.secret_list)
 
         self._change_slot_index(1)
-    
+
     def _handle_feedback_input(self, color: Color):
         if len(self.feedback_list) >= 5:
             return
@@ -107,19 +103,19 @@ class GameCodemakerController():
             white,
             black,
         )
-    
+
     def _change_slot_index(self, value: int):
         """
         Adds or removes the value from slot_index.
         Keeps slot_index in range [0, 5].
         """
         self.slot_index = max(0, min(5, self.slot_index + value))
-        print(self.slot_index)        
-    
+        print(self.slot_index)
+
     def add_color_secret_list(self, color: Color):
         if len(self.secret_list) < 5:
             self.secret_list.append(color)
-    
+
     def add_color_feedback_list(self, color: Color):
         if len(self.feedback_list) < 5:
             self.feedback_list.append(color)
@@ -135,11 +131,7 @@ class GameCodemakerController():
         # sync cursor to truth
         self.slot_index = len(self.secret_list)
 
-        self.game_view.game_attempt_board.set_guess_slot(
-            self.round_index,
-            self.slot_index,
-            None
-        )
+        self.game_view.game_attempt_board.set_guess_slot(self.round_index, self.slot_index, None)
 
     def _on_submit(self):
         if self.codemaker_mode == "secret":
@@ -176,12 +168,11 @@ class GameCodemakerController():
     def _on_move_slot(self, delta: int):
         self._change_slot_index(delta)
 
-
     # ---------- Game Administration Methods ----------
 
     def _on_abort_game(self):
         self.ui_service_adapter.on_abort_game()
-    
+
     def _on_game_aborted(self):
         MainWindow.instance().navigate_to("home")
 
