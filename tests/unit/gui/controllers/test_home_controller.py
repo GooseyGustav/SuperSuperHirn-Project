@@ -37,13 +37,14 @@ class TestHomeController:
         self.mock_view_instance.credits_requested.connect.assert_called_once()
 
     @patch("gui.controllers.home_controller.MainWindow")
-    def test_new_game(
-        self, mock_main_window_again
-    ):  # using different name just in case, but really mocking the import inside method
+    def test_new_game(self, mock_main_window_again):
+        self.mock_adapter.on_load_config.return_value = {"user_role": "CODEBREAKER"}
+
         with patch("gui.controllers.game_ui_controller.GameController") as mock_game_controller:
             self.controller._new_game()
 
             self.mock_adapter.on_start_game.assert_called_once()
+            self.mock_adapter.on_load_config.assert_called_once()
             mock_game_controller.assert_called_once()
 
     @patch("gui.controllers.home_controller.MainWindow")
@@ -51,8 +52,7 @@ class TestHomeController:
         with patch("gui.controllers.game_ui_controller.GameController") as mock_game_controller:
             self.controller._continue_game()
 
-            # Current implementation hardcodes IP and ID
-            self.mock_adapter.on_start_network_game.assert_called_once_with("123.123.123.123", "1")
+            self.mock_adapter.on_resume_interrupted.assert_called_once_with()
             mock_game_controller.assert_called_once()
 
     @patch("gui.controllers.home_controller.MainWindow")
