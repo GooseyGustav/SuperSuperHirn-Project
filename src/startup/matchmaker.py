@@ -109,12 +109,3 @@ class Matchmaker(ForAssemblingPlayers):
     def _notify_gui_callback(self, player_adapter: dict):
         if self._gui_callback is not None:
             self._gui_callback(player_adapter)
-
-
-# Waren im Diagram und in der Klassendoku, aber doch nicht nötig:
-
-# def _create_codebreaker(self, player_type: str):
-#     pass
-#
-# def _create_netplayer(self, player_type: str):
-#     self.network_manager = NetworkManager(server_url=None, timeout=None)
