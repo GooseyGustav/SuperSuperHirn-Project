@@ -1,4 +1,5 @@
 import time
+from math import ceil
 from typing import Callable
 
 
@@ -19,14 +20,16 @@ class Clock:
             max_time_millis: Per-move time budget in milliseconds.
             now: Monotonic time source. Defaults to time.monotonic; override in tests.
         """
+
+        if max_time_millis <= 0:
+            raise ValueError("Time limit must be bigger than 0")
+
         self.max_time_millis = max_time_millis
-        self.remaining_time_millis = max_time_millis
         self._now = now
         self._deadline: float | None = None
 
     def reset(self) -> None:
         """Clear the deadline and restore the full time budget. Call before each move."""
-        self.remaining_time_millis = self.max_time_millis
         self._deadline = None
 
     def start(self) -> None:
@@ -34,11 +37,11 @@ class Clock:
         self._deadline = self._now() + self.max_time_millis / 1000
 
     def is_expired(self) -> bool:
-        """Return True if the deadline has passed. Call after get_guess() returns."""
+        """Return True if the deadline has been reached. Call after get_guess() returns."""
         return self._deadline is not None and self._now() >= self._deadline
 
     def remaining_millis(self) -> int:
         """Return milliseconds left until the deadline, or the full budget if not yet started."""
         if self._deadline is None:
             return self.max_time_millis
-        return max(0, round((self._deadline - self._now()) * 1000))
+        return max(0, ceil((self._deadline - self._now()) * 1000))
