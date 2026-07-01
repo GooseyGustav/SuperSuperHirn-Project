@@ -113,7 +113,6 @@ class HomeController:
 
             # stop the timer immediately so it does not trigger again
             self.ready_timer.stop()
-            print("DEBUG: Core is ready! Adapter found. Loading the game board now...")
 
             # safely instantiate the GameController now that dependencies exist
             self.game_ctrl = GameController(is_network=True)
