@@ -357,6 +357,10 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             if not isinstance(value, int) or value < 0:
                 raise ValueError(f"{key} must be a non-negative integer")
 
+        # TIME_TRIAL requires a positive countdown; 0 would mean instant loss
+        if config["gamemode"] == Gamemode.TIME_TRIAL.value and config["countdown_millis"] < 100:
+            raise ValueError("countdown_millis must be >= 100 for TIME_TRIAL")
+
     @staticmethod
     def _validate_normalized_network_address(normalized_network_address: str):
         """Validates the provided network address.
