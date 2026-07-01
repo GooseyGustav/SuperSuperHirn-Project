@@ -1,14 +1,15 @@
+from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import (
+    UiGameConfigAndAdminAdapter,
+)
+from gui.views.components.color import Color
 from gui.views.game_view import GameView
 from gui.views.main_window import MainWindow
-from gui.views.components.color import Color
-
-from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import UiGameConfigAndAdminAdapter
 
 
-class GameController():
+class GameController:
 
     def __init__(self):
-        self.game_view = GameView()
+        self.game_view = GameView("guess")
         self.round_index = 0
         self.slot_index = 0
         self.guess_list = []
@@ -38,8 +39,8 @@ class GameController():
         print("exec1")
         self._update_board(attempt_list)
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
-        self.guess_list = []                        # clear previous guess
-        self.game_view.set_submit_enabled(True)     # optionally lock until ready
+        self.guess_list = []  # clear previous guess
+        self.game_view.set_submit_enabled(True)  # optionally lock until ready
 
     def _update_board(self, attempt_list):
         print("exec2")
@@ -61,11 +62,7 @@ class GameController():
             return
 
         self.add_color_guess_list(color)
-        self.game_view.game_attempt_board.set_guess_slot(
-            self.round_index,
-            self.slot_index,
-            color
-        )
+        self.game_view.game_attempt_board.set_guess_slot(self.round_index, self.slot_index, color)
 
         self._change_slot_index(1)
 
@@ -85,7 +82,7 @@ class GameController():
         if len(self.guess_list) == 5:
             print(self.guess_list)
             self.codebreaker.submit_guess(self.guess_list)  # wakes the Core thread
-            self.game_view.set_submit_enabled(False)   # lock until next guess_requested
+            self.game_view.set_submit_enabled(False)  # lock until next guess_requested
             self.guess_list = []
             self.round_index += 1
             self.slot_index = 0
@@ -100,11 +97,7 @@ class GameController():
         # sync cursor to truth
         self.slot_index = len(self.guess_list)
 
-        self.game_view.game_attempt_board.set_guess_slot(
-            self.round_index,
-            self.slot_index,
-            None
-        )
+        self.game_view.game_attempt_board.set_guess_slot(self.round_index, self.slot_index, None)
 
     def _on_enter(self):
         self._on_submit()

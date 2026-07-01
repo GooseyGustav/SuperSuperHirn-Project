@@ -33,8 +33,16 @@ class TestSlotSetColor:
         assert slot.is_empty() is False
 
     def test_set_color_maps_all_valid_ids(self):
-        expected = [Color.RED, Color.GREEN, Color.YELLOW, Color.BLUE,
-                    Color.ORANGE, Color.BROWN, Color.WHITE, Color.BLACK]
+        expected = [
+            Color.RED,
+            Color.GREEN,
+            Color.YELLOW,
+            Color.BLUE,
+            Color.ORANGE,
+            Color.BROWN,
+            Color.WHITE,
+            Color.BLACK,
+        ]
         for color_id, color in enumerate(expected, start=1):
             slot = Slot()
             slot.set_color(color_id)

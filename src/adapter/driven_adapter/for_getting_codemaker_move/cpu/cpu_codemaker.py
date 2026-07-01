@@ -40,10 +40,7 @@ class CpuCodemaker(ForGettingCodemakerMove):
             list[int]: A list of exactly 5 integers, each in the range 1-8 representing the hidden color sequence.
         """
 
-        return [
-            random.randint(self.MIN_COLOR, self.MAX_COLOR)
-            for _ in range(self.CODE_LENGTH)
-        ]
+        return [random.randint(self.MIN_COLOR, self.MAX_COLOR) for _ in range(self.CODE_LENGTH)]
 
     def get_feedback(self, secret: list[int], guess: list[int]) -> list[int]:
         """

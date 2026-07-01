@@ -1,10 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSizePolicy
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+
 from gui.views.components.color import Color
 from gui.views.components.color_slots import ColorSlot
 
-NUM_ROWS  = 10
+NUM_ROWS = 10
 NUM_SLOTS = 5
 
 
@@ -60,6 +61,7 @@ class FeedbackPeg(QWidget):
 
 class FeedbackWidget(QWidget):
     """5 pegs: 3 on top row, 2 on bottom row."""
+
     def __init__(self):
         super().__init__()
         self.setFixedWidth(60)
@@ -89,6 +91,7 @@ class FeedbackWidget(QWidget):
 
 class GuessWidget(QWidget):
     """5 color slots arranged horizontally."""
+
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)

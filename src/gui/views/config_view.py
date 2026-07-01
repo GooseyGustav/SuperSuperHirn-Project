@@ -2,13 +2,14 @@ from PyQt6.QtWidgets import (QDoubleSpinBox, QWidget, QPushButton, QVBoxLayout,
 QHBoxLayout, QLabel, QComboBox, QSpinBox)
 
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 
 class ConfigView(QWidget):
-    back_requested = pyqtSignal()           # controller navigates back
-    config_load_requested = pyqtSignal()    # controller should load + populate
+    back_requested = pyqtSignal()  # controller navigates back
+    config_load_requested = pyqtSignal()  # controller should load + populate
     config_save_requested = pyqtSignal(dict)  # filled dict will be saved
-    config_reset_requested = pyqtSignal()   # adapter will reset to defaults
+    config_reset_requested = pyqtSignal()  # adapter will reset to defaults
 
     def __init__(self):
         super().__init__()
@@ -61,8 +62,8 @@ class ConfigView(QWidget):
 
         # --- Buttons row ---
         btn_row = QHBoxLayout()
-        btn_back  = QPushButton("Back")
-        btn_save  = QPushButton("Save Config")
+        btn_back = QPushButton("Back")
+        btn_save = QPushButton("Save Config")
         btn_reset = QPushButton("Reset Config")
 
         btn_back.clicked.connect(self.back_requested.emit)

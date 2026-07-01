@@ -15,6 +15,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._stack)
 
         from ..controllers.home_controller import HomeController
+
         self.home_controller = HomeController()
 
         self.show()
