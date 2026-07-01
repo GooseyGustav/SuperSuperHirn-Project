@@ -77,15 +77,17 @@ class GameView(QWidget):
         btn_no_save_exit = QPushButton("NoSaveExit")
         btn_no_save_exit.clicked.connect(self.exit_game_no_save_pressed.emit)
 
-        btn_save_exit = QPushButton("SaveExit")
-        btn_save_exit.clicked.connect(self.exit_game_save_pressed.emit)
+        self._btn_save_exit = QPushButton("SaveExit")
+        self._btn_save_exit.clicked.connect(self.exit_game_save_pressed.emit)
 
-        btn_restart = QPushButton("Restart")
-        btn_restart.clicked.connect(self.restart_game_pressed.emit)
+        self._btn_restart = QPushButton("Restart")
+        self._btn_restart.clicked.connect(self.restart_game_pressed.emit)
 
         left_layout.addWidget(btn_no_save_exit)
-        left_layout.addWidget(btn_save_exit)
-        left_layout.addWidget(btn_restart)
+        left_layout.addWidget(self._btn_save_exit)
+        left_layout.addWidget(self._btn_restart)
+
+        # Empty space to the right of the buttons
         left_layout.addStretch()
 
         # Right side
@@ -197,3 +199,13 @@ class GameView(QWidget):
 
         else:
             super().keyPressEvent(event)
+
+    def set_network_mode(self, is_network: bool) -> None:
+        """
+        Hide invalid buttons (Save & Exit, Restart) when a network game is active.
+
+        Args:
+            is_network (bool): True if the current game is a network game.
+        """
+        self._btn_save_exit.setVisible(not is_network)
+        self._btn_restart.setVisible(not is_network)
