@@ -186,7 +186,7 @@ def test_validate_config_network_allows_codebreaker_and_observer(valid_config_di
 
 def test_validate_config_network_forbids_codemaker(valid_config_dict):
     invalid = {**valid_config_dict, "network_enabled": True, "user_role": "CODEMAKER"}
-    with pytest.raises(ValueError, match="only valid with user_role set to CODEBREAKER or OBSERVER"):
+    with pytest.raises(ValueError, match="not possible with Codemaker user"):
         GameManager._validate_config(invalid)
 
 

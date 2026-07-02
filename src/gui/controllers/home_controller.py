@@ -128,6 +128,8 @@ class HomeController:
         from PyQt6.QtCore import QTimer
         from PyQt6.QtWidgets import QMessageBox
 
+        self._network_role = role
+
         try:
             self.ui_service_adapter.on_start_network_game(address, gamer_id, role)
 
@@ -151,11 +153,11 @@ class HomeController:
         if MainWindow.instance().player_adapter is not None:
             # stop the timer immediately so it does not trigger again <-- right at the beginning
             self.ready_timer.stop()
-            role = self.ui_service_adapter.on_load_config().get("user_role")
+            role = self._network_role
             if role == "OBSERVER":
+                from gui.controllers.observer_controller import GameObserverController
+
+                self.observer_ctrl = GameObserverController()
                 print("Observer role detected. Starting observer game in background.")
             else:
                 self.game_ctrl = GameController(is_network=True)
-
-            # safely instantiate the GameController now that dependencies exist
-            self.game_ctrl = GameController(is_network=True)

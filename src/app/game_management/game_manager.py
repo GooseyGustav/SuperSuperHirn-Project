@@ -339,10 +339,8 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
             raise ValueError("network_enabled must be a boolean")
 
         # check network only with user_role = codebreaker or observer
-        if config["network_enabled"]:
-            role = Role(user_role)
-            if role not in [Role.CODEBREAKER, Role.OBSERVER]:
-                raise ValueError("network_enabled is only valid with user_role set to CODEBREAKER or OBSERVER")
+        if network_enabled and user_role is Role.CODEMAKER:
+            raise ValueError("Network game not possible with Codemaker user. Choose Observer or Codebreaker")
 
         # non-negative int check for time
         for key in ("countdown_millis", "delay_millis"):
