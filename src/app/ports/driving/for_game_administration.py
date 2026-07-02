@@ -63,17 +63,28 @@ class ForGameAdministration(ABC):
         """
 
     @abstractmethod
-    def resume_interrupted(self) -> None:
-        """Resumes the interrupted game (loads the saved game and continues the game).
+    def resume_interrupted(self) -> bool:
+        """Resumes the interrupted game: loads the saved game and continues
+        it on a worker thread.
+        Saved game is loaded on the main thread (so that load-time errors actually
+        make it to the GUI), then the game sound runs on a daemon thread (respects
+        reserving main thread to GUI for responsiveness).
+
+        Returns:
+            bool: True if a game was resumed, False if no saved game file was found.
 
         Raises:
-            CorruptedSaveError (a custom Exception): saved game exists but is malformed
-            (offer to delete, start new).
-            ValueError: game configuration or matchup is invalid.
-            OSError: failure reading saved game file (permission or disk error).
+            CorruptedSaveError: if the saved game data is corrupted (JSON malformed etc.)
+                (raised by ForPersistingGame.load_game() on the main thread,
+                GameManager propagtes to GUI to ask choice about deleting and starting new game.)
+            OSError: failure reading the saved game file (permission/disk))
+                (raised by ForPersistingGame.load_game() on the main thread,
+                GameManager propagtes to GUI to inform user)
 
         Note:
-            Missing saved game file -> start new game (no Error raise).
+            No saved game (FileNotFoundError): returns False, no raise.
+            Errors inside the threaded _configure_and_run (bad config, structurally corrupt
+            save) do NOT reach the GUI (logged on the worker thread).
         """
 
     @abstractmethod
@@ -92,7 +103,7 @@ class ForGameAdministration(ABC):
         """
 
     @abstractmethod
-    def start_network_game(self, network_address: str, gamer_id: str) -> None:
+    def start_network_game(self, network_address: str, gamer_id: str, role: str) -> None:
         """Starts the game with a remote player. The App connects to the remote player's
         network address and provides the User's Gamer ID. The implementer is responsible for
         validating the network address and gamer ID.
@@ -100,6 +111,7 @@ class ForGameAdministration(ABC):
         Args:
             network_address: IP:port or URL ("http://" or "https://" optional.)
             gamer_id: the user's gamer ID
+            role: the user's role in the game (CODEBREAKER or OBSERVER)
 
         Raises:
             ValueError: data or protocol failure :

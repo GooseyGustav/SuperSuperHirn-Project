@@ -15,6 +15,7 @@ class GuiCodebreaker(ForGettingCodebreakerMove):
         self._guess: list[int] = []
 
     def get_guess(self, attempt_list) -> list[int]:
+        self.pending_board = attempt_list
         self._qt_emitter.guess_requested.emit(attempt_list)  # → GameController informieren
         self._mutex.lock()
         self._wait.wait(self._mutex)  # schläft bis submit_guess()

@@ -2,8 +2,8 @@ import json
 import logging
 from pathlib import Path
 
-from app.game_management.save_errors import CorruptedSaveError
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 
 
 class GameJsonAdapter(ForPersistingGame):

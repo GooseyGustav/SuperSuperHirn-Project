@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from adapter.driven_adapter.for_persisting_game.file_tool.game_json_adapter import GameJsonAdapter
-from app.game_management.save_errors import CorruptedSaveError
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 
 
 @pytest.fixture
