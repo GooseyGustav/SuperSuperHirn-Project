@@ -47,13 +47,13 @@ class TestHomeController:
             self.mock_adapter.on_load_config.assert_called_once()
             mock_game_controller.assert_called_once()
 
+    @patch("gui.controllers.home_controller.QTimer")
     @patch("gui.controllers.home_controller.MainWindow")
-    def test_continue_game(self, mock_main_window_again):
-        with patch("gui.controllers.game_ui_controller.GameController") as mock_game_controller:
-            self.controller._continue_game()
-
-            self.mock_adapter.on_resume_interrupted.assert_called_once_with()
-            mock_game_controller.assert_called_once()
+    def test_continue_game(self, mock_main_window, mock_qtimer):
+        self.mock_adapter.on_resume_interrupted.return_value = True
+        self.controller._continue_game()
+        self.mock_adapter.on_resume_interrupted.assert_called_once_with()
+        mock_qtimer.return_value.start.assert_called_once_with(100)
 
     @patch("gui.controllers.home_controller.MainWindow")
     def test_go_to_settings(self, mock_main_window_again):

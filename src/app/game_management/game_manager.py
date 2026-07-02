@@ -7,13 +7,13 @@ from urllib.parse import urlparse
 from app.game_management.game_config_management.config_manager import ConfigManager
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.game_engine import GameEngine
-from app.game_management.save_errors import CorruptedSaveError
 from app.game_management.thread_executor import ThreadExecutor
 from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
 from app.ports.driven.for_assembling_players import ForAssemblingPlayers
 from app.ports.driven.for_persisting.for_persisting_config import ForPersistingConfig
 from app.ports.driven.for_persisting.for_persisting_game import ForPersistingGame
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 from app.ports.driving.for_configuring_game import ForConfiguringGame
 from app.ports.driving.for_game_administration import ForGameAdministration
 
@@ -77,6 +77,10 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         creates the game configuration object, and initializes the game engine.
 
         Returns: None
+
+        Note:
+            Runs on a worker thread -->  Errors during configuration, player assembly, or the game run
+            are logged there, not raised to the caller.
         """
         # make sure local Game doesn't launch network
         self._network_enabled = False
@@ -103,9 +107,11 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
                 - connection lost during game (--> aborts game round)
 
         Note:
-            Raised Errors -> driving adapter can fix and retry (GUI: ask input again)
-            Illegal move from remote player during game -> logged, game round aborted silently
+            Raised Errors: driving adapter can fix and retry (GUI: ask input again)
+            Illegal move from remote player during game: logged, game round aborted silently
             (no error raise).
+            Runs on a worker thread --> Errors during configuration, player assembly, or the game run
+            are logged there, not raised to the caller.
         """
         network_address = self._normalize_address(network_address)
         self._validate_normalized_network_address(network_address)  # raises ValueError if invalid
@@ -117,22 +123,42 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         game_thread.start()
         # does not persist on purpose
 
-    def resume_interrupted(self) -> None:
-        """Resumes the interrupted game (loads the saved game and continues the game)."""
+    def resume_interrupted(self) -> bool:
+        """Resumes the interrupted game: loads the saved game and continues
+        it on a worker thread.
+        Saved game is loaded on the main thread (so that load-time errors actually
+        make it to the GUI), then the game sound runs on a daemon thread (respects
+        reserving main thread to GUI for responsiveness).
+
+        Returns:
+            bool: True if a game was resumed, False if no saved game file was found.
+
+        Raises:
+            CorruptedSaveError: if the saved game data is corrupted (JSON malformed etc.)
+                (raised by ForPersistingGame.load_game() on the main thread,
+                GameManager propagtes to GUI to ask choice about deleting and starting new game.)
+            OSError: failure reading the saved game file (permission/disk))
+                (raised by ForPersistingGame.load_game() on the main thread,
+                GameManager propagtes to GUI to inform user)
+
+        Note:
+            No saved game (FileNotFoundError): returns False, no raise.
+            Errors inside the threaded _configure_and_run (bad config, structurally corrupt
+            save) do NOT reach the GUI (logged on the worker thread).
+        """
 
         self._network_enabled = False
+        self._network_address = None  # also resetting the connection properties just in case leftover
+        self._gamer_id = None  # also resetting the connection properties just in case leftover
 
         try:
-            game_data = self._persist_game_port.load_game()
-            self._configure_and_run(game_data)
+            game_data = self._persist_game_port.load_game()  # bad JSON: CorruptedSaveError to GUI
         except FileNotFoundError:
             logging.info("No saved game to resume.")
-            return
-        except CorruptedSaveError:
-            self._game_engine = None
-            self._config_manager = None
-            logging.warning("Corrupt save detected; cannot resume.", exc_info=True)
-            raise  # TODO: GUI soll anbieten : delete and start new
+            return False
+        thread = threading.Thread(target=self._configure_and_run, args=(game_data,), daemon=True)
+        thread.start()
+        return True
 
     def _configure_and_run(self, game_data: dict | None = None) -> None:
         """Shared flow for start game/resume interrupted to set up and run a
@@ -177,7 +203,13 @@ class GameManager(ForGameAdministration, ForConfiguringGame):
         self._game_engine = GameEngine(game_config)
 
         if game_data is not None:
-            self._game_engine.resume(game_data)
+            try:
+                self._game_engine.resume(game_data)
+            except CorruptedSaveError:
+                logging.warning("Corrupted saved game file; aborting resume.", exc_info=True)
+                self._game_engine = None
+                self._config_manager = None
+                return
 
         players_config_for_players_assembling_port = {
             **config_dict,

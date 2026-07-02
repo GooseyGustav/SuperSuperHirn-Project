@@ -61,5 +61,5 @@ def test_network_game_only_if_user_role_is_codebreaker(matchmaker, config_for_ne
         **config_for_network_codemaker_valid,
         "user_role": "CODEMAKER",
     }  # overwrite user_role
-    with pytest.raises(ValueError, match="codebreaker"):
+    with pytest.raises(ValueError, match="codemaker"):
         matchmaker.assemble_players(config_user_role_codemaker_invalid)

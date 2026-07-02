@@ -17,7 +17,7 @@ class TestGameController:
 
         self.mock_main_window_instance = MagicMock()
         self.mock_adapter = MagicMock()
-        self.mock_player_adapter = {"codebreaker": MagicMock()}
+        self.mock_player_adapter = {"codebreaker": MagicMock(pending_board=None)}
 
         self.mock_main_window_instance.ui_service_adapter = self.mock_adapter
         self.mock_main_window_instance.player_adapter = self.mock_player_adapter
