@@ -1,6 +1,10 @@
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QMessageBox
+
 from adapter.driving_adapter.for_game_config_and_admin.gui.ui_game_config_and_admin_service import (
     UiGameConfigAndAdminAdapter,
 )
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 
 from ..views.home_view import HomeView
 from ..views.main_window import MainWindow
@@ -53,18 +57,15 @@ class HomeController:
         self.home_view.btn_game_continue.setEnabled(True)
 
     def _continue_game(self):
-        from PyQt6.QtWidgets import QMessageBox
-
-        from app.game_management.save_errors import CorruptedSaveError
-        from gui.controllers.game_ui_controller import GameController
 
         try:
-            self.ui_service_adapter.on_resume_interrupted()
+            MainWindow.instance().player_adapter = None  # make sure adapters are reset
+            resumed_game = self.ui_service_adapter.on_resume_interrupted()
         except CorruptedSaveError:
             answer = QMessageBox.question(
                 self.home_view,
-                "Saved game corrupted",
-                "The saved game can't be loaded. Delete it and start fresh?",
+                "Saved game file corrupted",
+                "The saved game can't be loaded. Delete it and start new game?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if answer == QMessageBox.StandardButton.Yes:
@@ -74,7 +75,23 @@ class HomeController:
             QMessageBox.critical(self.home_view, "Couldn't continue", str(e))
             return
 
-        self.game_ctrl = GameController()  # only on success
+        if not resumed_game:
+            QMessageBox.information(self.home_view, "No saved game found", "There is no available game to continue.")
+            return
+
+        # assemble players on the resume worker thread; wait for the
+        # assemly to finish, then build view
+        self._players_ready_timer = QTimer()
+        self._players_ready_timer.timeout.connect(self._check_if_players_ready_for_resume)
+        self._players_ready_timer.start(100)
+
+    def _check_if_players_ready_for_resume(self):
+        from gui.controllers.game_ui_controller import GameController
+
+        # first assemble right players (from resumed game), then start controller
+        if MainWindow.instance().player_adapter is not None:
+            self._players_ready_timer.stop()
+            self.game_ctrl = GameController()
 
     def _go_to_settings(self):
         from gui.controllers.config_controller import ConfigController
@@ -111,6 +128,8 @@ class HomeController:
         from PyQt6.QtCore import QTimer
         from PyQt6.QtWidgets import QMessageBox
 
+        self._network_role = role
+
         try:
             self.ui_service_adapter.on_start_network_game(address, gamer_id, role)
 
@@ -132,15 +151,13 @@ class HomeController:
 
         # once the player_adapter is no longer None, the core has finished its setup
         if MainWindow.instance().player_adapter is not None:
-
-            role = self.ui_service_adapter.on_load_config().get("user_role")
+            # stop the timer immediately so it does not trigger again <-- right at the beginning
+            self.ready_timer.stop()
+            role = self._network_role
             if role == "OBSERVER":
+                from gui.controllers.observer_controller import GameObserverController
+
+                self.observer_ctrl = GameObserverController()
                 print("Observer role detected. Starting observer game in background.")
             else:
                 self.game_ctrl = GameController(is_network=True)
-
-            # stop the timer immediately so it does not trigger again
-            self.ready_timer.stop()
-
-            # safely instantiate the GameController now that dependencies exist
-            self.game_ctrl = GameController(is_network=True)

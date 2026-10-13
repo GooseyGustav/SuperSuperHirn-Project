@@ -71,8 +71,8 @@ class Matchmaker(ForAssemblingPlayers):
         # TODO: make sure that guard is in GameManager._validate_config
         # TODO: make sure to catch that raise in GameManager
         # Network can only be codemaker
-        if network_enabled and user_role != CODEBREAKER:
-            raise ValueError("Network game only possible with user as codebreaker")
+        if network_enabled and user_role == CODEMAKER:
+            raise ValueError("Network game only possible with remote player as codemaker")
 
         match user_role:
             case "CODEBREAKER":

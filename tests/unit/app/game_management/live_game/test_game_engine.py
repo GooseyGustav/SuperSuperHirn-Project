@@ -7,12 +7,12 @@ from app.game_management.game_config_management.config import Config
 from app.game_management.game_config_management.role import Role
 from app.game_management.live_game.clock import Clock
 from app.game_management.live_game.game_engine import GameEngine
-from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.game import Game
 from app.game_model.game_mode import Gamemode
 from app.game_model.game_state import Gamestate
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 from app.ports.driven.for_getting_moves.errors import TimeoutInterrupt
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 from tests.unit.app.game_management.live_game.fake_now import FakeNow
 
 
