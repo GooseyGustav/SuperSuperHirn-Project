@@ -2,6 +2,7 @@ import logging
 import time
 
 import requests
+from PyQt6.QtCore import QObject, pyqtSignal  # for observer network game
 
 from app.ports.driven.for_getting_moves.for_getting_codemaker_move import ForGettingCodemakerMove
 from network.network_manager import NetworkManager
@@ -17,6 +18,9 @@ class NetworkCodemaker(ForGettingCodemakerMove):
     MAX_RESEND_ATTEMPTS = 10
     RETRY_PAUSE_SECONDS = 0.5
 
+    BLACK_PEG = 8
+    WHITE_PEG = 7
+
     def __init__(self, network_manager: NetworkManager, gamerid: str, positions: int, colors: int) -> None:
         """Initialize the network adapter.
 
@@ -31,6 +35,7 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         self.positions = positions
         self.colors = colors
         self.current_gameid = 0
+        self.emitter = NetworkCodemakerEmitter()
 
     def start_network_session(self) -> None:
         """Initiate the network handshake to receive a valid gameid.
@@ -109,7 +114,9 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         for attempt in range(self.MAX_RESEND_ATTEMPTS):
             try:
                 response = self.network_manager.post_json(payload)  # raises ValueError or requests exception
-                return self._parse_feedback(response)  # raises ValueError if bad feedback
+                feedback = self._parse_feedback(response)
+                self.emitter.feedback_submitted.emit(feedback)
+                return feedback
             except (ValueError, requests.RequestException) as e:
                 last_error = e
                 logging.warning("Bad feedback message: %s", e)
@@ -143,3 +150,8 @@ class NetworkCodemaker(ForGettingCodemakerMove):
         if len(value) > self.positions:
             raise ValueError(f"feedback too long: {value!r}")
         return [int(char) for char in value]
+
+
+class NetworkCodemakerEmitter(QObject):
+    secret_submitted = pyqtSignal(list)  # defined for parity, never emitted (remote secret hidden)
+    feedback_submitted = pyqtSignal(list)

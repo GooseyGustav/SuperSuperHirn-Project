@@ -21,6 +21,9 @@ class GameController:
         MainWindow.instance().navigate_to("game")
 
         self._connect_events()
+        pending_board = getattr(self.codebreaker, "pending_board", None)
+        if pending_board is not None:
+            self._on_guess_requested(pending_board)
 
         # Setup timer and network UI states
         self._apply_game_config()
@@ -42,6 +45,8 @@ class GameController:
     def _on_guess_requested(self, attempt_list):
         """Core is waiting for a guess — update the board and arm the submit button."""
         self._update_board(attempt_list)
+        self.round_index = len(attempt_list)  # continue after rows from saved game if resumed
+        self.slot_index = 0
         self.game_view.game_attempt_board.set_active_slot(self.round_index, self.slot_index)
         self.guess_list = []  # clear previous guess
         self.game_view.set_submit_enabled(True)  # optionally lock until ready
@@ -51,13 +56,11 @@ class GameController:
             self.game_view.start_timer(self.countdown_millis)
 
     def _update_board(self, attempt_list):
-        for i, (_, feedback, _) in enumerate(attempt_list):
-            if not feedback:
-                black = 0
-                white = 0
-            else:
-                black = feedback.count(8)
-                white = feedback.count(7)
+        for i, (guess, feedback, _) in enumerate(attempt_list):  # guesses too
+            if guess:
+                self.game_view.game_attempt_board.set_guess(i, guess)  # list color ints
+            black = feedback.count(8) if feedback else 0
+            white = feedback.count(7) if feedback else 0
 
             self.game_view.game_attempt_board.set_feedback_slots(i, white, black)
 

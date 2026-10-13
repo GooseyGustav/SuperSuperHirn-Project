@@ -30,7 +30,13 @@ class GameObserverController:
         self.game_view.exit_game_no_save_pressed.connect(self._on_abort_game)
 
         self.codebreaker.emitter.guess_submitted.connect(self._handle_guess_input, Qt.ConnectionType.QueuedConnection)
-        self.codemaker.emitter.secret_submitted.connect(self._handle_secret_input, Qt.ConnectionType.QueuedConnection)
+
+        codemaker_emitter = getattr(self.codemaker, "emitter", None)
+        if codemaker_emitter is not None:  # user observer,
+            codemaker_emitter.secret_submitted.connect(self._handle_secret_input, Qt.ConnectionType.QueuedConnection)
+        #        self.codemaker.emitter.secret_submitted.connect(self._handle_secret_input,
+        #        Qt.ConnectionType.QueuedConnection)
+
         self.codemaker.emitter.feedback_submitted.connect(
             self._handle_feedback_input, Qt.ConnectionType.QueuedConnection
         )

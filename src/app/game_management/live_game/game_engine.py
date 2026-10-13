@@ -3,7 +3,6 @@ import time
 from app.game_management.game_config_management.code_constants import CodeConstants
 from app.game_management.game_config_management.config import Config
 from app.game_management.live_game.clock import Clock
-from app.game_management.save_errors import CorruptedSaveError
 from app.game_model.color_code.code import Code
 from app.game_model.color_code.color import Color
 from app.game_model.color_code.slot import Slot
@@ -15,6 +14,7 @@ from app.game_model.player_attempts.feedback import Feedback
 from app.game_model.player_attempts.feedback_status import FeedbackStatus
 from app.game_model.player_attempts.guess import Guess
 from app.ports.driven.for_getting_moves.errors import TimeoutInterrupt
+from app.ports.driven.for_persisting.save_errors import CorruptedSaveError
 
 
 class GameEngine:
@@ -191,8 +191,13 @@ class GameEngine:
     # TODO: naming conflict with GameEngine.interrupt_game() with different effect
     #  (GamEngine does not save, GameManager saves). --> rename here (not in GameManager!)
     def interrupt_game(self) -> None:
-        """Signal the run loop to stop; run() will mark the game as INTERRUPTED."""
+        """Signal the run loop to stop and mark the game as INTERRUPTED immediately,
+        so the caller (GameMAnager) can save the game without waiting for run() to exit
+        its while loop (change because of threading conditions).
+        """
         self.shutdown_requested = True
+        if self.game is not None and self.game.game_state == Gamestate.RUNNING:
+            self.game.game_state = Gamestate.INTERRUPTED
 
     def resume(self, game_data: dict) -> None:
         """Rebuild the Game from a saved snapshot so run() can continue it.
